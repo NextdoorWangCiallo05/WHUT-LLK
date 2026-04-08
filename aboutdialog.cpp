@@ -1,6 +1,7 @@
-#include "helpdialog.h"
+#include "aboutdialog.h"
 #include "thememanager.h"
 #include "uistyle.h"
+#include "windowdrag.h"
 
 #include <QVBoxLayout>
 #include <QLabel>
@@ -8,13 +9,13 @@
 #include <QGraphicsDropShadowEffect>
 #include <QColor>
 
-HelpDialog::HelpDialog(QWidget* parent)
+AboutDialog::AboutDialog(QWidget* parent)
     : QDialog(parent),
     titleLabel(new QLabel(this)),
     contentLabel(new QLabel(this)),
-    closeBtn(new QPushButton("我知道了", this))
+    closeBtn(new QPushButton("关闭", this))
 {
-    setFixedSize(520, 360);
+    setFixedSize(420, 280);
     setModal(true);
 
     auto applyDialogBg = [this]() {
@@ -30,18 +31,25 @@ HelpDialog::HelpDialog(QWidget* parent)
     layout->setContentsMargins(16, 16, 16, 16);
     layout->setSpacing(12);
 
-    // 统一自定义顶栏
-    setupGlassDialogTopBar(this, layout, "帮助", "帮助");
+    setupGlassDialogTopBar(this, layout, "关于", "关于");
 
+    titleLabel->setText("关于连连看");
     titleLabel->setAlignment(Qt::AlignCenter);
     titleLabel->setStyleSheet(glassTitleLabelStyle());
 
+    contentLabel->setText(
+        "连连看  版本：1.0.5.1\n\n"
+        "这是一个使用 Qt6 开发的连连看小游戏。\n"
+        "支持经典、休闲、计时、关卡和自定义五种模式，\n"
+        "并包含提示、重排、排行榜、4种主题样式和结算功能。\n"
+        "最后更改于2026.4.8。"
+    );
     contentLabel->setWordWrap(true);
     contentLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     contentLabel->setStyleSheet(glassTextLabelStyle());
 
     closeBtn->setFixedHeight(40);
-    closeBtn->setMinimumWidth(140);
+    closeBtn->setMinimumWidth(120);
     closeBtn->setStyleSheet(glassButtonStyle(QColor(0, 145, 255)));
     applyGlassShadow(closeBtn, QColor(0, 0, 0, 85));
 
@@ -50,14 +58,4 @@ HelpDialog::HelpDialog(QWidget* parent)
     layout->addWidget(closeBtn, 0, Qt::AlignCenter);
 
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::accept);
-}
-
-void HelpDialog::setHelpTitle(const QString& title)
-{
-    titleLabel->setText(title);
-}
-
-void HelpDialog::setHelpText(const QString& text)
-{
-    contentLabel->setText(text);
 }

@@ -2,27 +2,54 @@
 #include "classicwindow.h"
 #include "relaxwindow.h"
 #include "timedwindow.h"
+#include "levelwindow.h"
+#include "levelselectdialog.h"
+#include "customwindow.h"
 #include "helpdialog.h"
+#include "rankdialog.h"
 #include "settingsdialog.h"
+#include "aboutdialog.h"
 #include "audiomanager.h"
+#include "uistyle.h"
+#include "windowround.h"
+#include "thememanager.h"
 
 #include <QApplication>
+#include <QMouseEvent>
 #include <QPalette>
+#include <QPoint>
 #include <QPixmap>
 #include <QPushButton>
+#include <QPainter>
+#include <QPainterPath>
+#include <QRegion>
+#include <QPaintEvent>
+#include <QResizeEvent>
 #include <QMessageBox>
+#include <QGraphicsDropShadowEffect>
+#include <QBrush>
+#include <QColor>
 
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
     setWindowTitle("连连看 - 主菜单");
     setFixedSize(800, 600);
+    setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
 
-    QPixmap bgPix(":/images/bg1.png");
-    QPalette pal;
-    pal.setBrush(QPalette::Window, QBrush(bgPix.scaled(this->size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation)));
-    setPalette(pal);
-    setAutoFillBackground(true);
+    m_bgPix = QPixmap(ThemeManager::instance().backgroundPathMain());
+    m_bgScaled = QPixmap();
+    m_bgScaledSize = QSize();
+
+    connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this, [this]() {
+        m_bgPix = QPixmap(ThemeManager::instance().backgroundPathMain());
+        m_bgScaled = QPixmap();
+        m_bgScaledSize = QSize();
+        update();
+        });
+
+    setAttribute(Qt::WA_TranslucentBackground, true);
+    setAutoFillBackground(false);
 
     initUI();
 }
@@ -34,101 +61,107 @@ void MainWindow::initUI()
     centralWidget = new QWidget(this);
     setCentralWidget(centralWidget);
 
-    // 根布局：上（音乐） 中（左侧主按钮） 下（功能按钮）
     QVBoxLayout* root = new QVBoxLayout(centralWidget);
     root->setContentsMargins(20, 20, 20, 20);
     root->setSpacing(0);
 
-    // ---------------- 顶部栏 ----------------
-    QHBoxLayout* topBar = new QHBoxLayout();
-    topBar->addStretch();
+    QWidget* topBar = new QWidget(this);
+    topBar->setFixedHeight(44);
+    topBar->setStyleSheet(R"(
+    QWidget {
+        background-color: rgba(255, 255, 255, 0.20);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 16px;
+    }
+)");
 
-    QPushButton* btnMusic = new QPushButton(this);
-    btnMusic->setFixedSize(110, 44);
-    btnMusic->setStyleSheet(R"(
-        QPushButton{
-            font-size: 20px;
-            color: #2c3e50;
-            background-color: rgba(255,255,255,0.78);
-            border: 1px solid rgba(60,60,60,0.25);
-            border-radius: 4px;
-        }
-        QPushButton:hover{ background-color: rgba(255,255,255,0.95); }
-        QPushButton:pressed{ background-color: rgba(235,235,235,0.95); }
-    )");
-    btnMusic->setText(AudioManager::instance().isMuted() ? "音乐：关" : "音乐：开");
-    topBar->addWidget(btnMusic);
+    auto* topShadow = new QGraphicsDropShadowEffect(topBar);
+    topShadow->setBlurRadius(22);
+    topShadow->setOffset(0, 6);
+    topShadow->setColor(QColor(0, 0, 0, 45));
+    topBar->setGraphicsEffect(topShadow);
 
-    root->addLayout(topBar);
+    QHBoxLayout* topLayout = new QHBoxLayout(topBar);
+    topLayout->setContentsMargins(12, 6, 12, 6);
+    topLayout->setSpacing(8);
 
-    // ---------------- 中间区域 ----------------
+    QLabel* appIcon = new QLabel(topBar);
+    appIcon->setPixmap(QPixmap(":/images/app.ico").scaled(18, 18, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    appIcon->setStyleSheet("background: transparent; border: none; padding: 0; margin: 0;");
+    appIcon->setFixedSize(18, 18);
+
+    QLabel* titleLabel = new QLabel("连连看 - 主菜单", topBar);
+    titleLabel->setStyleSheet("color: rgba(0, 0, 0, 0.82); font-size: 15px; font-weight: 600; background: transparent; border: none;");
+
+    QPushButton* btnMin = new QPushButton("–", topBar);
+    QPushButton* btnClose = new QPushButton("×", topBar);
+
+    btnMin->setFixedSize(28, 24);
+    btnClose->setFixedSize(28, 24);
+
+    btnMin->setStyleSheet(R"(
+    QPushButton { background: transparent; border: none; font-size: 18px; color: rgba(0,0,0,0.75); border-radius: 10px; }
+    QPushButton:hover { background-color: rgba(255,255,255,0.35); }
+)");
+    btnClose->setStyleSheet(R"(
+    QPushButton { background: transparent; border: none; font-size: 18px; color: rgba(0,0,0,0.75); border-radius: 10px; }
+    QPushButton:hover { background-color: rgba(255,80,80,0.92); color: white; }
+)");
+
+    topLayout->addWidget(appIcon);
+    topLayout->addWidget(titleLabel);
+    topLayout->addStretch();
+    topLayout->addWidget(btnMin);
+    topLayout->addWidget(btnClose);
+
+    connect(btnMin, &QPushButton::clicked, this, &QWidget::showMinimized);
+    connect(btnClose, &QPushButton::clicked, this, &QWidget::close);
+
+    root->addWidget(topBar);
+
     QHBoxLayout* centerArea = new QHBoxLayout();
     centerArea->setContentsMargins(0, 10, 0, 10);
 
     QVBoxLayout* leftModes = new QVBoxLayout();
-    leftModes->setSpacing(22);
+    leftModes->setSpacing(16);
     leftModes->addStretch();
 
     btnClassic = new QPushButton("经典模式");
     btnRelax = new QPushButton("休闲模式");
     btnTimed = new QPushButton("计时模式");
+    btnLevel = new QPushButton("关卡模式");
+    btnCustom = new QPushButton("自定义模式");
 
-    btnClassic->setFixedSize(128, 64);
-    btnRelax->setFixedSize(128, 64);
-    btnTimed->setFixedSize(128, 64);
+    const QSize modeBtnSize(170, 58);
+    btnClassic->setFixedSize(modeBtnSize);
+    btnRelax->setFixedSize(modeBtnSize);
+    btnTimed->setFixedSize(modeBtnSize);
+    btnLevel->setFixedSize(modeBtnSize);
+    btnCustom->setFixedSize(modeBtnSize);
 
-    // 三模式对应颜色：经典蓝、休闲绿、计时橙
-    QString classicStyle = R"(
-        QPushButton{
-            font-size: 20px;
-            color: white;
-            background-color: rgba(52,152,219,0.90);
-            border: 1px solid rgba(255,255,255,0.45);
-            border-radius: 4px;
-        }
-        QPushButton:hover{ background-color: rgba(64,172,245,1); }
-        QPushButton:pressed{ background-color: rgba(41,128,185,1); }
-    )";
+    btnClassic->setStyleSheet(mainMenuBigButtonStyle(QColor(0, 145, 255)));
+    btnRelax->setStyleSheet(mainMenuBigButtonStyle(QColor(48, 209, 88)));
+    btnTimed->setStyleSheet(mainMenuBigButtonStyle(QColor(255, 146, 48)));
+    btnLevel->setStyleSheet(mainMenuBigButtonStyle(QColor(219, 52, 242)));
+    btnCustom->setStyleSheet(mainMenuBigButtonStyle(QColor(255, 45, 85)));
 
-    QString relaxStyle = R"(
-        QPushButton{
-            font-size: 20px;
-            color: white;
-            background-color: rgba(46,204,113,0.90);
-            border: 1px solid rgba(255,255,255,0.45);
-            border-radius: 4px;
-        }
-        QPushButton:hover{ background-color: rgba(72,224,141,1); }
-        QPushButton:pressed{ background-color: rgba(39,174,96,1); }
-    )";
-
-    QString timedStyle = R"(
-        QPushButton{
-            font-size: 20px;
-            color: white;
-            background-color: rgba(230,126,34,0.92);
-            border: 1px solid rgba(255,255,255,0.45);
-            border-radius: 4px;
-        }
-        QPushButton:hover{ background-color: rgba(243,156,18,1); }
-        QPushButton:pressed{ background-color: rgba(211,84,0,1); }
-    )";
-
-    btnClassic->setStyleSheet(classicStyle);
-    btnRelax->setStyleSheet(relaxStyle);
-    btnTimed->setStyleSheet(timedStyle);
+    applyGlassShadow(btnClassic, QColor(0, 0, 0, 100));
+    applyGlassShadow(btnRelax, QColor(0, 0, 0, 100));
+    applyGlassShadow(btnTimed, QColor(0, 0, 0, 100));
+    applyGlassShadow(btnLevel, QColor(0, 0, 0, 100));
+    applyGlassShadow(btnCustom, QColor(0, 0, 0, 100));
 
     leftModes->addWidget(btnClassic, 0, Qt::AlignLeft);
     leftModes->addWidget(btnRelax, 0, Qt::AlignLeft);
     leftModes->addWidget(btnTimed, 0, Qt::AlignLeft);
+    leftModes->addWidget(btnLevel, 0, Qt::AlignLeft);
+    leftModes->addWidget(btnCustom, 0, Qt::AlignLeft);
     leftModes->addStretch();
 
     centerArea->addLayout(leftModes);
     centerArea->addStretch();
-
     root->addLayout(centerArea, 1);
 
-    // ---------------- 底部栏 ----------------
     QHBoxLayout* bottomBar = new QHBoxLayout();
     bottomBar->addStretch();
 
@@ -137,25 +170,11 @@ void MainWindow::initUI()
     QPushButton* btnRank = new QPushButton("排行榜");
     QPushButton* btnAbout = new QPushButton("关于");
 
-    auto setSmallBtnStyle = [](QPushButton* b) {
-        b->setFixedSize(86, 46);
-        b->setStyleSheet(R"(
-            QPushButton{
-                font-size: 20px;
-                color: #2c3e50;
-                background-color: rgba(255,255,255,0.78);
-                border: 1px solid rgba(60,60,60,0.25);
-                border-radius: 4px;
-            }
-            QPushButton:hover{ background-color: rgba(255,255,255,0.95); }
-            QPushButton:pressed{ background-color: rgba(235,235,235,0.95); }
-        )");
-        };
-
-    setSmallBtnStyle(btnSetting);
-    setSmallBtnStyle(btnHelp);
-    setSmallBtnStyle(btnRank);
-    setSmallBtnStyle(btnAbout);
+    for (auto* b : { btnSetting, btnHelp, btnRank, btnAbout }) {
+        b->setFixedSize(92, 46);
+        b->setStyleSheet(glassButtonStyle(QColor(100, 240, 255)));
+        applyGlassShadow(b, QColor(0, 0, 0, 70));
+    }
 
     bottomBar->addWidget(btnSetting);
     bottomBar->addSpacing(10);
@@ -167,24 +186,17 @@ void MainWindow::initUI()
 
     root->addLayout(bottomBar);
 
-    // 保留成员兼容（你原头文件有 btnExit）
     btnExit = btnAbout;
 
-    // ---------------- 事件连接 ----------------
     connect(btnClassic, &QPushButton::clicked, this, &MainWindow::openClassicMode);
     connect(btnRelax, &QPushButton::clicked, this, &MainWindow::openRelaxMode);
     connect(btnTimed, &QPushButton::clicked, this, &MainWindow::openTimedMode);
-
-    connect(btnMusic, &QPushButton::clicked, this, [=]() {
-        bool nowMuted = AudioManager::instance().isMuted();
-        AudioManager::instance().setMuted(!nowMuted);
-        btnMusic->setText(AudioManager::instance().isMuted() ? "音乐：关" : "音乐：开");
-        });
+    connect(btnLevel, &QPushButton::clicked, this, &MainWindow::openLevelMode);
+    connect(btnCustom, &QPushButton::clicked, this, &MainWindow::openCustomMode);
 
     connect(btnSetting, &QPushButton::clicked, this, [=]() {
         SettingsDialog dlg(this);
         dlg.exec();
-        btnMusic->setText(AudioManager::instance().isMuted() ? "音乐：关" : "音乐：开");
         });
 
     connect(btnHelp, &QPushButton::clicked, this, [=]() {
@@ -198,17 +210,21 @@ void MainWindow::initUI()
             "【模式说明】\n"
             "- 经典模式：标准棋盘挑战。\n"
             "- 休闲模式：更轻松的节奏。\n"
-            "- 计时模式：在倒计时内完成消除。"
+            "- 计时模式：在倒计时内完成消除。\n"
+            "- 关卡模式：先选关，通关可解锁下一关。\n"
+            "- 自定义模式：可自由设置棋盘行列（行×列必须为偶数）。"
         );
         dlg.exec();
         });
 
     connect(btnRank, &QPushButton::clicked, this, [=]() {
-        QMessageBox::information(this, "排行榜", "排行榜功能开发中");
+        RankDialog dlg(this);
+        dlg.exec();
         });
 
     connect(btnAbout, &QPushButton::clicked, this, [=]() {
-        QMessageBox::information(this, "关于", "连连看_QtRefresh\n版本：1.0.0.0\n使用QT6重构");
+        AboutDialog dlg(this);
+        dlg.exec();
         });
 }
 
@@ -231,4 +247,76 @@ void MainWindow::openTimedMode() {
     w->move(this->pos());
     w->show();
     close();
+}
+
+void MainWindow::openLevelMode() {
+    LevelSelectDialog dlg(this);
+    if (dlg.exec() != QDialog::Accepted) return;
+
+    int level = dlg.selectedLevel();
+    if (level < 1 || level > 3) return;
+
+    LevelWindow* w = new LevelWindow(level);
+    w->move(this->pos());
+    w->show();
+    close();
+}
+
+void MainWindow::openCustomMode() {
+    CustomWindow* w = new CustomWindow();
+    if (!w->isValid()) {      // 取消输入时不展示空白棋盘
+        delete w;
+        return;
+    }
+    w->move(this->pos());
+    w->show();
+    close();
+}
+
+void MainWindow::mousePressEvent(QMouseEvent* event)
+{
+    if (handleWindowDragMousePress(this, event, m_dragState)) return;
+    QMainWindow::mousePressEvent(event);
+}
+
+void MainWindow::mouseMoveEvent(QMouseEvent* event)
+{
+    if (handleWindowDragMouseMove(this, event, m_dragState)) return;
+    QMainWindow::mouseMoveEvent(event);
+}
+
+void MainWindow::mouseReleaseEvent(QMouseEvent* event)
+{
+    handleWindowDragMouseRelease(event, m_dragState);
+    QMainWindow::mouseReleaseEvent(event);
+}
+
+void MainWindow::resizeEvent(QResizeEvent* event)
+{
+    QMainWindow::resizeEvent(event);
+    m_bgScaled = QPixmap();
+    m_bgScaledSize = QSize();
+}
+
+void MainWindow::paintEvent(QPaintEvent* event)
+{
+    Q_UNUSED(event);
+
+    QPainter p(this);
+    p.setRenderHint(QPainter::Antialiasing, true);
+
+    QPainterPath clip;
+    clip.addRoundedRect(rect(), m_cornerRadius, m_cornerRadius);
+    p.setClipPath(clip);
+
+    if (!m_bgPix.isNull()) {
+        if (m_bgScaledSize != size() || m_bgScaled.isNull()) {
+            m_bgScaled = m_bgPix.scaled(size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+            m_bgScaledSize = size();
+        }
+        p.drawPixmap(rect(), m_bgScaled);
+    }
+    else {
+        p.fillPath(clip, QColor(30, 30, 30));
+    }
 }

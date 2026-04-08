@@ -1,5 +1,4 @@
 #pragma once
-#pragma once
 #ifndef AUDIOMANAGER_H
 #define AUDIOMANAGER_H
 
@@ -24,6 +23,12 @@ public:
     void setMuted(bool m);
     bool isMuted() const;
 
+    void setSfxMuted(bool m);
+    bool isSfxMuted() const;
+
+    void playClickSfx();
+    void playClearSfx();
+
 signals:
     void audioStateChanged();
 
@@ -38,6 +43,7 @@ private:
     QAudioOutput* m_output;
     int m_volume;
     bool m_muted;
+    bool m_sfxMuted;
 };
 
 #endif

@@ -1,9 +1,8 @@
 #pragma once
-#ifndef HELPDIALOG_H
-#define HELPDIALOG_H
+#ifndef ABOUTDIALOG_H
+#define ABOUTDIALOG_H
 
 #include "windowdrag.h"
-
 #include <QDialog>
 #include <QPropertyAnimation>
 #include <QGraphicsOpacityEffect>
@@ -11,20 +10,17 @@
 class QLabel;
 class QPushButton;
 
-class HelpDialog : public QDialog
+class AboutDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit HelpDialog(QWidget* parent = nullptr);
+    explicit AboutDialog(QWidget* parent = nullptr);
 
-    void setHelpTitle(const QString& title);
-    void setHelpText(const QString& text);
 
 private:
     QLabel* titleLabel;
     QLabel* contentLabel;
     QPushButton* closeBtn;
-    bool m_closing = false;
 
     WindowDragState m_dragState;
 };

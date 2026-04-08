@@ -1,5 +1,6 @@
 #include "audiomanager.h"
 #include <QSettings>
+#include <QSoundEffect>
 #include <QMediaPlayer>
 #include <QAudioOutput>
 #include <QFileInfo>
@@ -11,11 +12,13 @@ AudioManager::AudioManager(QObject* parent)
     m_player(nullptr),
     m_output(nullptr),
     m_volume(50),
-    m_muted(false)
+    m_muted(false),
+    m_sfxMuted(false)
 {
     QSettings s("YourCompany", "LLK_Refresh");
     m_volume = s.value("audio/volume", 50).toInt();
     m_muted = s.value("audio/muted", false).toBool();
+    m_sfxMuted = s.value("audio/sfxMuted", false).toBool();
 }
 
 AudioManager& AudioManager::instance()
@@ -93,4 +96,44 @@ void AudioManager::saveSettings()
     QSettings s("YourCompany", "LLK_Refresh");
     s.setValue("audio/volume", m_volume);
     s.setValue("audio/muted", m_muted);
+    s.setValue("audio/sfxMuted", m_sfxMuted);
+}
+
+void AudioManager::playClickSfx()
+{
+    if (m_sfxMuted) return;
+
+    auto* s = new QSoundEffect(this);
+    s->setSource(QUrl("qrc:/audio/click.wav"));
+    s->setVolume(m_volume / 100.0); // 跟随音量，独立于BGM静音
+    connect(s, &QSoundEffect::playingChanged, s, [s]() {
+        if (!s->isPlaying()) s->deleteLater();
+        });
+    s->play();
+}
+
+void AudioManager::playClearSfx()
+{
+    if (m_sfxMuted) return;
+
+    auto* s = new QSoundEffect(this);
+    s->setSource(QUrl("qrc:/audio/clear.wav"));
+    s->setVolume(m_volume / 100.0);
+    connect(s, &QSoundEffect::playingChanged, s, [s]() {
+        if (!s->isPlaying()) s->deleteLater();
+        });
+    s->play();
+}
+
+void AudioManager::setSfxMuted(bool m)
+{
+    if (m_sfxMuted == m) return;
+    m_sfxMuted = m;
+    saveSettings();
+    emit audioStateChanged();
+}
+
+bool AudioManager::isSfxMuted() const
+{
+    return m_sfxMuted;
 }

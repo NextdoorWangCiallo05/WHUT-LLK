@@ -1,23 +1,103 @@
+#include "audiomanager.h"
 #include "gamewindow.h"
 #include "mainwindow.h"
-#include <QMessageBox>
+#include "helpdialog.h"
+#include "glassmessagebox.h"
+#include "thememanager.h"
+#include "uistyle.h"
+
 #include <QIcon>
 #include <QPixmap>
 #include <QLayoutItem>
 #include <QPainter>
 #include <QPaintEvent>
+#include <QSettings>
+#include <QGraphicsDropShadowEffect>
+#include <QBrush>
+#include <QColor>
+#include <QPointer>
+
+static QString topBarStyle()
+{
+    return R"(
+    QWidget {
+        background-color: rgba(255, 255, 255, 0.20);
+        border: 1px solid rgba(255, 255, 255, 0.28);
+        border-radius: 16px;
+    }
+)";
+}
+
+static QString topBarTitleStyle()
+{
+    return R"(
+    QLabel {
+        color: rgba(0, 0, 0, 0.82);
+        font-size: 15px;
+        font-weight: 600;
+        background: transparent;
+        border: none;
+    }
+)";
+}
+
+static QString topBarBtnMinStyle()
+{
+    return R"(
+    QPushButton {
+        background: transparent;
+        border: none;
+        font-size: 18px;
+        color: rgba(0,0,0,0.75);
+        border-radius: 10px;
+    }
+    QPushButton:hover {
+        background-color: rgba(255,255,255,0.35);
+    }
+)";
+}
+
+static QString topBarBtnCloseStyle()
+{
+    return R"(
+    QPushButton {
+        background: transparent;
+        border: none;
+        font-size: 18px;
+        color: rgba(0,0,0,0.75);
+        border-radius: 10px;
+    }
+    QPushButton:hover {
+        background-color: rgba(255,80,80,0.92);
+        color: white;
+    }
+)";
+}
+
+static const char* kCellStyleNormal = "border: none; background: transparent;";
+static const char* kCellStyleSelected = "border: 2px solid red; background: transparent;";
+static const char* kCellStyleHint = "border: 2px solid yellow; background: rgba(255,255,0,0.15);";
 
 GameWindow::GameWindow(QWidget* parent)
     : QWidget(parent),
+    topWidget(nullptr),
+    infoWidget(nullptr),
     boardWidget(nullptr),
     bottomWidget(nullptr),
     gameLayout(nullptr),
+    infoLayout(nullptr),
     btnLayout(nullptr),
     cells(nullptr),
+    m_cellsCount(0),
     btnBack(nullptr),
     btnReset(nullptr),
     btnHint(nullptr),
     btnHelp(nullptr),
+    btnPause(nullptr),
+    appIcon(nullptr),
+    titleLabel(nullptr),
+    btnMin(nullptr),
+    btnClose(nullptr),
     logic(new GameLogic()),
     rows(10),
     cols(16),
@@ -25,25 +105,84 @@ GameWindow::GameWindow(QWidget* parent)
     hasSelected(false),
     m_showLink(false),
     hasHint(false),
-    inputEnabled(true)
+    inputEnabled(true),
+    m_boardEpoch(0)
 {
+    setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
     setFixedSize(800, 600);
-    setAutoFillBackground(true);
+    setAutoFillBackground(false);
 
-    // 背景图
-    QPixmap bg(":/images/bg2.png");
-    QPalette pal;
-    pal.setBrush(QPalette::Window, bg.scaled(size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-    setPalette(pal);
+    m_bgPix = QPixmap(ThemeManager::instance().backgroundPathGame());
+    connect(&ThemeManager::instance(), &ThemeManager::themeChanged, this, [this]() {
+        m_bgPix = QPixmap(ThemeManager::instance().backgroundPathGame());
+        m_bgScaled = QPixmap();
+        m_bgScaledSize = QSize();
+        m_iconCache.clear();
+        refreshBoard();
+        update();
+        });
 
-    // 全局布局：上留白 + 棋盘 + 按钮 + 下留白
     QVBoxLayout* globalLayout = new QVBoxLayout(this);
     globalLayout->setContentsMargins(16, 16, 16, 16);
     globalLayout->setSpacing(14);
 
+    topWidget = new QWidget(this);
+    topWidget->setFixedHeight(44);
+    topWidget->setStyleSheet(topBarStyle());
+
+    auto* topShadow = new QGraphicsDropShadowEffect(topWidget);
+    topShadow->setBlurRadius(22);
+    topShadow->setOffset(0, 6);
+    topShadow->setColor(QColor(0, 0, 0, 45));
+    topWidget->setGraphicsEffect(topShadow);
+
+    QHBoxLayout* topLayout = new QHBoxLayout(topWidget);
+    topLayout->setContentsMargins(12, 6, 12, 6);
+    topLayout->setSpacing(8);
+
+    appIcon = new QLabel(topWidget);
+    appIcon->setPixmap(QPixmap(":/images/app.ico").scaled(18, 18, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    appIcon->setStyleSheet(R"(
+    QLabel {
+        background: transparent;
+        border: none;
+        padding: 0px;
+        margin: 0px;
+    }
+)");
+    appIcon->setFixedSize(18, 18);
+
+    titleLabel = new QLabel("连连看", topWidget);
+    titleLabel->setStyleSheet(topBarTitleStyle());
+
+    btnMin = new QPushButton("–", topWidget);
+    btnClose = new QPushButton("×", topWidget);
+
+    btnMin->setFixedSize(28, 24);
+    btnClose->setFixedSize(28, 24);
+    btnMin->setStyleSheet(topBarBtnMinStyle());
+    btnClose->setStyleSheet(topBarBtnCloseStyle());
+
+    topLayout->addWidget(appIcon);
+    topLayout->addWidget(titleLabel);
+    topLayout->addStretch();
+    topLayout->addWidget(btnMin);
+    topLayout->addWidget(btnClose);
+
+    connect(btnMin, &QPushButton::clicked, this, &QWidget::showMinimized);
+    connect(btnClose, &QPushButton::clicked, this, &QWidget::close);
+
+    globalLayout->addWidget(topWidget);
+
+    infoWidget = new QWidget(this);
+    infoLayout = new QHBoxLayout(infoWidget);
+    infoLayout->setContentsMargins(0, 0, 0, 0);
+    infoLayout->setSpacing(0);
+    infoLayout->setAlignment(Qt::AlignCenter);
+    globalLayout->addWidget(infoWidget);
+
     globalLayout->addStretch(1);
 
-    // 棋盘容器（核心：固定区域 + 居中）
     boardWidget = new QWidget(this);
     QHBoxLayout* boardOuter = new QHBoxLayout(boardWidget);
     boardOuter->setContentsMargins(0, 0, 0, 0);
@@ -59,7 +198,6 @@ GameWindow::GameWindow(QWidget* parent)
     boardOuter->addLayout(gameLayout);
     globalLayout->addWidget(boardWidget, 0, Qt::AlignCenter);
 
-    // 底部按钮容器
     bottomWidget = new QWidget(this);
     btnLayout = new QHBoxLayout(bottomWidget);
     btnLayout->setContentsMargins(0, 0, 0, 0);
@@ -75,10 +213,77 @@ GameWindow::GameWindow(QWidget* parent)
 GameWindow::~GameWindow()
 {
     if (cells) {
+        for (int i = 0; i < m_cellsCount; ++i) {
+            delete cells[i];
+            cells[i] = nullptr;
+        }
         delete[] cells;
         cells = nullptr;
+        m_cellsCount = 0;
     }
     delete logic;
+}
+
+void GameWindow::setupCommonModeButtons(const QColor& baseColor, bool withPauseButton, const QSize& btnSize)
+{
+    btnBack = new QPushButton("返回主菜单");
+    btnReset = new QPushButton("重排");
+    btnHint = new QPushButton("提示");
+    btnHelp = new QPushButton("帮助");
+
+    auto initBtn = [&](QPushButton* b) {
+        b->setStyleSheet(glassButtonStyle(baseColor));
+        b->setFixedSize(btnSize);
+        btnLayout->addWidget(b);
+        };
+
+    initBtn(btnBack);
+
+    if (withPauseButton) {
+        btnPause = new QPushButton("暂停");
+        initBtn(btnPause);
+    }
+
+    initBtn(btnReset);
+    initBtn(btnHint);
+    initBtn(btnHelp);
+
+    connect(btnBack, &QPushButton::clicked, this, &GameWindow::backToMain);
+
+    connect(btnReset, &QPushButton::clicked, this, [this]() {
+        logic->shuffleMap();
+        refreshBoard();
+        GlassMessageBox::information(this, "提示", "图案已重排！");
+        });
+
+    connect(btnHint, &QPushButton::clicked, this, [this]() {
+        showHint();
+        });
+
+    connect(btnHelp, &QPushButton::clicked, this, [this]() {
+        HelpDialog dlg(this);
+        dlg.setHelpTitle(helpTitle());
+        dlg.setHelpText(helpText());
+        dlg.exec();
+        });
+}
+
+QIcon GameWindow::iconForValue(int v)
+{
+    auto it = m_iconCache.find(v);
+    if (it != m_iconCache.end()) return it.value();
+
+    const QString p = ThemeManager::instance().tileIconPath(v);
+    QIcon icon(p);
+    m_iconCache.insert(v, icon);
+    return icon;
+}
+
+void GameWindow::setModeTitle(const QString& title)
+{
+    if (titleLabel) {
+        titleLabel->setText(title);
+    }
 }
 
 void GameWindow::backToMain()
@@ -91,36 +296,53 @@ void GameWindow::backToMain()
 
 void GameWindow::createBoard()
 {
-    // 清旧按钮
+    ++m_boardEpoch;
+    hasSelected = false;
+    hasHint = false;
+    clearLinkPath();
+
     if (cells) {
-        for (int i = 0; i < rows * cols; i++) {
-            if (cells[i]) cells[i]->deleteLater();
+        for (int i = 0; i < m_cellsCount; ++i) {
+            delete cells[i];
+            cells[i] = nullptr;
         }
         delete[] cells;
         cells = nullptr;
+        m_cellsCount = 0;
     }
 
-    // 清空layout残留item
     while (QLayoutItem* item = gameLayout->takeAt(0)) {
         delete item;
     }
 
-    cells = new QPushButton * [rows * cols];
+    const int hSpacing = gameLayout->horizontalSpacing();
+    const int vSpacing = gameLayout->verticalSpacing();
 
-    // 动态计算棋盘容器尺寸，保证“整块棋盘”居中显示
-    int hSpacing = gameLayout->horizontalSpacing();
-    int vSpacing = gameLayout->verticalSpacing();
+    const int safeBoardMaxW = 760;
+    const int safeBoardMaxH = 360;
+
+    int maxByW = (safeBoardMaxW - (cols - 1) * hSpacing) / cols;
+    int maxByH = (safeBoardMaxH - (rows - 1) * vSpacing) / rows;
+
+    int adaptive = qMin(maxByW, maxByH);
+    if (adaptive < 24) adaptive = 24;
+    if (adaptive > 48) adaptive = 48;
+    cellSize = adaptive;
+
+    m_cellsCount = rows * cols;
+    cells = new QPushButton * [m_cellsCount];
+
     int boardW = cols * cellSize + (cols - 1) * hSpacing;
     int boardH = rows * cellSize + (rows - 1) * vSpacing;
     boardWidget->setFixedSize(boardW, boardH);
 
-    for (int x = 0; x < rows; x++) {
-        for (int y = 0; y < cols; y++) {
+    for (int x = 0; x < rows; ++x) {
+        for (int y = 0; y < cols; ++y) {
             int idx = x * cols + y;
-            cells[idx] = new QPushButton(this);
+            cells[idx] = new QPushButton(boardWidget);
             cells[idx]->setFixedSize(cellSize, cellSize);
             cells[idx]->setIconSize(QSize(cellSize - 2, cellSize - 2));
-            cells[idx]->setStyleSheet("border: none; background: transparent;");
+            cells[idx]->setStyleSheet(kCellStyleNormal);
 
             gameLayout->addWidget(cells[idx], x, y, Qt::AlignCenter);
 
@@ -134,20 +356,29 @@ void GameWindow::createBoard()
 void GameWindow::onCellClicked(int x, int y)
 {
     if (!inputEnabled) return;
+    if (!cells) return;
+    if (x < 0 || x >= rows || y < 0 || y >= cols) return;
 
     Point cur(x, y);
     if (logic->getMapData(x, y) == 0) return;
 
+    AudioManager::instance().playClickSfx();
     clearHintStyle();
 
     if (!hasSelected) {
         lastPoint = cur;
-        cells[x * cols + y]->setStyleSheet("border: 2px solid red; background: transparent;");
+        int idx = x * cols + y;
+        if (idx >= 0 && idx < m_cellsCount && cells[idx]) {
+            cells[idx]->setStyleSheet(kCellStyleSelected);
+        }
         hasSelected = true;
         return;
     }
 
-    cells[lastPoint.x * cols + lastPoint.y]->setStyleSheet("border: none; background: transparent;");
+    int prevIdx = lastPoint.x * cols + lastPoint.y;
+    if (prevIdx >= 0 && prevIdx < m_cellsCount && cells[prevIdx]) {
+        cells[prevIdx]->setStyleSheet(kCellStyleNormal);
+    }
 
     if (lastPoint.x == x && lastPoint.y == y) {
         hasSelected = false;
@@ -156,27 +387,42 @@ void GameWindow::onCellClicked(int x, int y)
 
     std::vector<Point> path;
     if (logic->findPath(lastPoint, cur, path)) {
-        drawLinkPath(path); // 先画线
+        AudioManager::instance().playClearSfx();
+
+        drawLinkPath(path);
 
         logic->setMapData(lastPoint.x, lastPoint.y, 0);
         logic->setMapData(cur.x, cur.y, 0);
         onPairRemoved();
 
-        // 延迟一点再刷新，让用户看到连线
-        QTimer::singleShot(120, this, [=]() {
-            clearLinkPath();
-            refreshBoard();
+        const quint64 epochAtSchedule = m_boardEpoch;
+        QPointer<GameWindow> self(this);
 
-            if (logic->isMapEmpty()) {
-                onGameCleared();
+        QTimer::singleShot(120, this, [self, epochAtSchedule]() {
+            if (!self) return;
+            if (self->m_boardEpoch != epochAtSchedule) return;
+            if (!self->cells) return;
+
+            self->clearLinkPath();
+            self->refreshBoard();
+
+            if (self->logic->isMapEmpty()) {
+                self->onGameCleared();
                 return;
             }
 
-            // 若无解自动重排
-            if (!logic->hasAnySolution()) {
-                logic->shuffleUntilSolvable();
-                refreshBoard();
-                QMessageBox::information(this, "提示", "当前无可消除对子，已自动重排。");
+            if (!self->logic->hasAnySolution()) {
+                QSettings s("YourCompany", "LLK_Refresh");
+                bool autoShuffle = s.value("game/autoShuffle", true).toBool();
+
+                if (autoShuffle) {
+                    self->logic->shuffleUntilSolvable();
+                    self->refreshBoard();
+                    GlassMessageBox::information(self, "提示", "当前无可消除对子，已自动重排。");
+                }
+                else {
+                    GlassMessageBox::information(self, "提示", "当前无可消除对子，请手动点击“重排”。");
+                }
             }
             });
     }
@@ -186,25 +432,29 @@ void GameWindow::onCellClicked(int x, int y)
 
 void GameWindow::refreshBoard()
 {
+    if (!cells) return;
+
     for (int x = 0; x < rows; x++) {
         for (int y = 0; y < cols; y++) {
             int v = logic->getMapData(x, y);
             int idx = x * cols + y;
 
+            if (idx < 0 || idx >= m_cellsCount || !cells[idx]) continue;
+
             if (v == 0) {
                 cells[idx]->setIcon(QIcon());
-                cells[idx]->setStyleSheet("border: none; background: transparent;");
+                cells[idx]->setStyleSheet(kCellStyleNormal);
             }
             else {
-                cells[idx]->setIcon(QIcon(":/images/" + QString::number(v) + ".png"));
-                cells[idx]->setStyleSheet("border: none; background: transparent;");
+                cells[idx]->setIcon(iconForValue(v));
+                cells[idx]->setStyleSheet(kCellStyleNormal);
             }
         }
     }
+
     hasHint = false;
     clearLinkPath();
 }
-
 
 void GameWindow::drawLinkPath(const std::vector<Point>& path)
 {
@@ -216,6 +466,14 @@ void GameWindow::drawLinkPath(const std::vector<Point>& path)
 
 void GameWindow::paintEvent(QPaintEvent* event)
 {
+    if (m_bgScaledSize != size()) {
+        m_bgScaled = m_bgPix.scaled(size(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        m_bgScaledSize = size();
+    }
+
+    QPainter bg(this);
+    bg.drawPixmap(rect(), m_bgScaled);
+
     QWidget::paintEvent(event);
 
     if (!m_showLink || m_linkPath.size() < 2) return;
@@ -223,8 +481,7 @@ void GameWindow::paintEvent(QPaintEvent* event)
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
 
-    // 绿色连线（可见性高）
-    QPen pen(QColor(50, 220, 120), 4);   // 原来是红色
+    QPen pen(QColor(50, 220, 120), 4);
     pen.setCapStyle(Qt::RoundCap);
     pen.setJoinStyle(Qt::RoundJoin);
     p.setPen(pen);
@@ -247,7 +504,24 @@ void GameWindow::paintEvent(QPaintEvent* event)
     }
 }
 
-// ===================== 提示功能 =====================
+void GameWindow::mousePressEvent(QMouseEvent* event)
+{
+    if (handleWindowDragMousePress(this, event, m_dragState)) return;
+    QWidget::mousePressEvent(event);
+}
+
+void GameWindow::mouseMoveEvent(QMouseEvent* event)
+{
+    if (handleWindowDragMouseMove(this, event, m_dragState)) return;
+    QWidget::mouseMoveEvent(event);
+}
+
+void GameWindow::mouseReleaseEvent(QMouseEvent* event)
+{
+    handleWindowDragMouseRelease(event, m_dragState);
+    QWidget::mouseReleaseEvent(event);
+}
+
 void GameWindow::clearHintStyle()
 {
     if (!hasHint || !cells) return;
@@ -255,11 +529,11 @@ void GameWindow::clearHintStyle()
     int i1 = hintA.x * cols + hintA.y;
     int i2 = hintB.x * cols + hintB.y;
 
-    if (i1 >= 0 && i1 < rows * cols && cells[i1]) {
-        cells[i1]->setStyleSheet("border: none; background: transparent;");
+    if (i1 >= 0 && i1 < m_cellsCount && cells[i1]) {
+        cells[i1]->setStyleSheet(kCellStyleNormal);
     }
-    if (i2 >= 0 && i2 < rows * cols && cells[i2]) {
-        cells[i2]->setStyleSheet("border: none; background: transparent;");
+    if (i2 >= 0 && i2 < m_cellsCount && cells[i2]) {
+        cells[i2]->setStyleSheet(kCellStyleNormal);
     }
 
     hasHint = false;
@@ -267,7 +541,6 @@ void GameWindow::clearHintStyle()
 
 void GameWindow::showHint()
 {
-    // 先清理旧提示样式
     clearHintStyle();
 
     Point a, b;
@@ -279,17 +552,25 @@ void GameWindow::showHint()
         int i1 = a.x * cols + a.y;
         int i2 = b.x * cols + b.y;
 
-        if (cells && i1 >= 0 && i1 < rows * cols && cells[i1]) {
-            cells[i1]->setStyleSheet("border: 2px solid yellow; background: rgba(255,255,0,0.15);");
+        if (cells && i1 >= 0 && i1 < m_cellsCount && cells[i1]) {
+            cells[i1]->setStyleSheet(kCellStyleHint);
         }
-        if (cells && i2 >= 0 && i2 < rows * cols && cells[i2]) {
-            cells[i2]->setStyleSheet("border: 2px solid yellow; background: rgba(255,255,0,0.15);");
+        if (cells && i2 >= 0 && i2 < m_cellsCount && cells[i2]) {
+            cells[i2]->setStyleSheet(kCellStyleHint);
         }
     }
     else {
-        QMessageBox::information(this, "提示", "当前无可消除对子，将自动重排。");
-        logic->shuffleUntilSolvable();
-        refreshBoard();
+        QSettings s("YourCompany", "LLK_Refresh");
+        bool autoShuffle = s.value("game/autoShuffle", true).toBool();
+
+        if (autoShuffle) {
+            GlassMessageBox::information(this, "提示", "当前无可消除对子，将自动重排。");
+            logic->shuffleUntilSolvable();
+            refreshBoard();
+        }
+        else {
+            GlassMessageBox::information(this, "提示", "当前无可消除对子，请手动点击“重排”。");
+        }
     }
 }
 
@@ -302,6 +583,6 @@ void GameWindow::clearLinkPath()
 
 void GameWindow::onGameCleared()
 {
-    QMessageBox::information(this, "胜利", "恭喜你，全部消除！");
+    GlassMessageBox::information(this, "结算", "消除成功");
     backToMain();
 }

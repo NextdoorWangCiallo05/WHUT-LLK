@@ -1,88 +1,98 @@
 #include "timedwindow.h"
 #include "helpdialog.h"
 #include "resultdialog.h"
-#include <QPushButton>
-#include <QProgressBar>
-#include <QMessageBox>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include "uistyle.h"
+#include "thememanager.h"
+#include "rankmanager.h"
 
-TimedWindow::TimedWindow(QWidget* parent) : GameWindow(parent)
+#include <QInputDialog>
+#include <QPushButton>
+#include <QMessageBox>
+#include <QLabel>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
+#include <QSettings>
+#include <typeinfo>
+
+QString TimedWindow::formatTime(int sec) const
+{
+    if (sec < 0) sec = 0;
+    int min = sec / 60;
+    int s = sec % 60;
+    return QString("%1:%2")
+        .arg(min, 2, 10, QChar('0'))
+        .arg(s, 2, 10, QChar('0'));
+}
+
+TimedWindow::TimedWindow(QWidget* parent, bool autoStart) : GameWindow(parent)
 {
     setWindowTitle("计时模式");
+    setModeTitle("计时模式");
 
-    // 先初始化计时相关状态（关键修复）
-    totalSec = 600;
+    QSettings s("YourCompany", "LLK_Refresh");
+    totalSec = s.value("game/timedModeTotalSec", 600).toInt();
+    if (totalSec < 60) totalSec = 60;
+    if (totalSec > 3600) totalSec = 3600;
+
     leftSec = totalSec;
     removedPairs = 0;
     gameFinished = false;
     isPaused = false;
 
-    QString btnStyle = R"(
-    QPushButton {
-        font-size: 14px;
-        color: white;
-        background-color: rgba(230, 126, 34, 0.90);   /* 主橙 */
-        border: none;
-        border-radius: 8px;
-        padding: 8px 20px;
-        min-width: 80px;
-    }
-    QPushButton:hover {
-        background-color: rgba(243, 156, 18, 1);      /* 亮橙 */
-    }
-    QPushButton:pressed {
-        background-color: rgba(211, 84, 0, 1);        /* 深橙 */
-    }
-)";
-
-    btnBack = new QPushButton("返回菜单");
-    btnPause = new QPushButton("暂停");
-    btnReset = new QPushButton("重排");
-    btnHint = new QPushButton("提示");
-    btnHelp = new QPushButton("帮助");
-
-    btnBack->setStyleSheet(btnStyle);
-    btnPause->setStyleSheet(btnStyle);
-    btnReset->setStyleSheet(btnStyle);
-    btnHint->setStyleSheet(btnStyle);
-    btnHelp->setStyleSheet(btnStyle);
-
-    btnLayout->addWidget(btnBack);
-    btnLayout->addWidget(btnPause);
-    btnLayout->addWidget(btnReset);
-    btnLayout->addWidget(btnHint);
-    btnLayout->addWidget(btnHelp);
-    btnLayout->addSpacing(20);
+    setupCommonModeButtons(QColor(255, 146, 48), true, QSize(115, 42));
 
     labTime = new QLabel(this);
-    labTime->setMinimumWidth(100);   // 原来 180 太窄
+    labTime->setMinimumWidth(220);
+    labTime->setFixedHeight(42);
     labTime->setAlignment(Qt::AlignCenter);
     labTime->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-    labTime->setStyleSheet(
-        "QLabel {"
-        " color: white;"
-        " font-size: 14px;"
-        " font-weight: bold;"
-        " background-color: rgba(0, 0, 0, 90);"
-        " border-radius: 8px;"
-        " padding: 6px 12px;"
-        "}"
-    );
-    labTime->setText(QString("剩余 %1 秒").arg(leftSec));
-    btnLayout->addWidget(labTime);
+    labTime->setStyleSheet(glassTimeLabelStyle());
+    labTime->setText(QString("剩余 %1 / 总计 %2")
+        .arg(formatTime(leftSec))
+        .arg(formatTime(totalSec)));
 
-    // 关键：一定加到按钮布局
-    btnLayout->addWidget(timeBar);
+    QVBoxLayout* mainLayout = qobject_cast<QVBoxLayout*>(layout());
+    if (mainLayout) {
+        mainLayout->insertWidget(1, labTime, 0, Qt::AlignCenter);
+    }
+
+    btnLayout->addSpacing(20);
 
     pauseMask = new QWidget(boardWidget);
-    pauseMask->setStyleSheet("background-color: rgba(0,0,0,140);");
+    pauseMask->setStyleSheet(R"(
+    QWidget {
+        background-color: rgba(160, 160, 160, 0.20);
+        border: 1px solid rgba(255, 255, 255, 0.30);
+        border-radius: 18px; 
+    }
+)");
     pauseMask->hide();
 
     pauseLabel = new QLabel("已暂停", pauseMask);
     pauseLabel->setAlignment(Qt::AlignCenter);
-    pauseLabel->setStyleSheet("color:white;font-size:42px;font-weight:bold;");
+    pauseLabel->setStyleSheet(R"(
+    QLabel{
+        color: rgba(255,255,255,0.98);
+        font-size: 46px;
+        font-weight: 800;
+        background: transparent;
+        border: none; 
+    }
+)");
 
+    pauseSubLabel = new QLabel("点击「继续」恢复游戏", pauseMask);
+    pauseSubLabel->setAlignment(Qt::AlignCenter);
+    pauseSubLabel->setStyleSheet(R"(
+    QLabel{
+        color: rgba(255,255,255,0.92);
+        font-size: 16px;
+        font-weight: 600;
+        background: transparent;
+        border: none;
+    }
+)");
+
+    disconnect(btnBack, nullptr, nullptr, nullptr);
     connect(btnBack, &QPushButton::clicked, this, [=]() {
         if (timer) timer->stop();
         backToMain();
@@ -92,51 +102,40 @@ TimedWindow::TimedWindow(QWidget* parent) : GameWindow(parent)
         setPaused(!isPaused);
         });
 
-    connect(btnReset, &QPushButton::clicked, this, [=]() {
-        logic->shuffleMap();
-        refreshBoard();
-        QMessageBox::information(this, "提示", "图案已重排！", QMessageBox::Ok);
-        });
-
-    connect(btnHint, &QPushButton::clicked, this, [=]() {
-        showHint();
-        });
-
-    connect(btnHelp, &QPushButton::clicked, this, [=]() {
-        HelpDialog dlg(this);
-        dlg.setHelpTitle("计时模式帮助");
-        dlg.setHelpText(
-            "计时模式说明：\n"
-            "1. 在倒计时结束前尽可能完成消除。\n"
-            "2. 连线最多 2 拐点，可绕棋盘外侧。\n"
-            "3. 合理使用“提示”和“重排”提高效率。"
-        );
-        dlg.exec();
-        });
-
-    // 只创建一次 timer（关键修复）
     timer = new QTimer(this);
     connect(timer, &QTimer::timeout, this, &TimedWindow::onTimerTimeout);
 
-    initGame();
-    startGame();
+    if (autoStart) {
+        initGame();
+        startGame();
+    }
 }
 
-void TimedWindow::initGame() {
+void TimedWindow::initGame()
+{
     rows = 8;
     cols = 12;
+    logic->setMaxType(ThemeManager::instance().tileTypeCount());
     logic->initMap(rows, cols);
 
     leftSec = totalSec;
     removedPairs = 0;
     gameFinished = false;
+    isPaused = false;
+    inputEnabled = true;
 
     if (labTime) {
-        labTime->setText(QString("剩余 %1 秒").arg(leftSec));
+        labTime->setText(QString("剩余 %1 / 总计 %2")
+            .arg(formatTime(leftSec))
+            .arg(formatTime(totalSec)));
     }
+
+    if (btnPause) btnPause->setText("暂停");
+    if (pauseMask) pauseMask->hide();
 }
 
-void TimedWindow::startGame() {
+void TimedWindow::startGame()
+{
     createBoard();
     refreshBoard();
     if (timer) timer->start(1000);
@@ -148,8 +147,15 @@ void TimedWindow::onTimerTimeout()
     if (leftSec <= 0) return;
 
     --leftSec;
+
     if (labTime) {
-        labTime->setText(QString("剩余 %1 秒").arg(leftSec));
+        labTime->setText(QString("剩余 %1 / 总计 %2")
+            .arg(formatTime(leftSec))
+            .arg(formatTime(totalSec)));
+    }
+
+    if (leftSec <= 0) {
+        finishTimedGame(false);
     }
 }
 
@@ -165,11 +171,28 @@ void TimedWindow::onPairRemoved()
 
 void TimedWindow::finishTimedGame(bool win)
 {
-    if (gameFinished) return;   // 关键：只执行一次
+    if (gameFinished) return;
     gameFinished = true;
 
     if (timer) timer->stop();
     inputEnabled = false;
+
+    // 仅“计时模式本体”写入排行榜；关卡模式(LevelWindow)不写入
+    if (win && typeid(*this) == typeid(TimedWindow)) {
+        bool ok = false;
+        QString nickname = QInputDialog::getText(
+            this,
+            "记录成绩",
+            "请输入昵称：",
+            QLineEdit::Normal,
+            "",
+            &ok
+        );
+
+        if (ok) {
+            RankManager::instance().addRecord(nickname, leftSec);
+        }
+    }
 
     ResultDialog dlg(this);
     dlg.setResult(win, totalSec, leftSec, removedPairs);
@@ -179,7 +202,7 @@ void TimedWindow::finishTimedGame(bool win)
 
 void TimedWindow::onGameCleared()
 {
-    finishTimedGame(true); // 直接进入计时模式结算页
+    finishTimedGame(true);
 }
 
 void TimedWindow::setPaused(bool paused)
@@ -188,22 +211,47 @@ void TimedWindow::setPaused(bool paused)
     inputEnabled = !paused;
 
     if (paused) {
-        timer->stop();
+        if (timer) timer->stop();
         updatePauseMaskGeometry();
-        pauseMask->show();
-        pauseMask->raise();
-        btnPause->setText("继续");
+        if (pauseMask) {
+            pauseMask->show();
+            pauseMask->raise();
+        }
+        if (btnPause) btnPause->setText("继续");
     }
     else {
-        pauseMask->hide();
-        timer->start(1000);
-        btnPause->setText("暂停");
+        if (pauseMask) pauseMask->hide();
+        if (timer && !gameFinished) timer->start(1000);
+        if (btnPause) btnPause->setText("暂停");
     }
 }
 
 void TimedWindow::updatePauseMaskGeometry()
 {
     if (!pauseMask || !boardWidget) return;
-    pauseMask->setGeometry(boardWidget->rect()); 
-    pauseLabel->setGeometry(pauseMask->rect());
+    pauseMask->setGeometry(boardWidget->rect());
+
+    const QRect r = pauseMask->rect();
+    if (pauseLabel)    pauseLabel->setGeometry(0, r.height() / 2 - 58, r.width(), 58);
+    if (pauseSubLabel) pauseSubLabel->setGeometry(0, r.height() / 2 + 6, r.width(), 28);
+}
+
+void TimedWindow::resizeEvent(QResizeEvent* event)
+{
+    GameWindow::resizeEvent(event);
+    updatePauseMaskGeometry();
+}
+
+QString TimedWindow::helpTitle() const
+{
+    return "计时模式帮助";
+}
+
+QString TimedWindow::helpText() const
+{
+    return
+        "计时模式说明：\n"
+        "1. 在倒计时结束前尽可能完成消除。\n"
+        "2. 连线最多 2 拐点，可绕棋盘外侧。\n"
+        "3. 合理使用“提示”和“重排”提高效率。";
 }

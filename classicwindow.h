@@ -2,6 +2,8 @@
 #ifndef CLASSICWINDOW_H
 #define CLASSICWINDOW_H
 #include "gamewindow.h"
+#include <QPropertyAnimation>
+#include <QGraphicsOpacityEffect>
 
 class ClassicWindow : public GameWindow
 {
@@ -11,6 +13,9 @@ public:
 protected:
     void initGame() override;
     void startGame() override;
+
+    QString helpTitle() const override;
+    QString helpText() const override;
 };
 
 #endif

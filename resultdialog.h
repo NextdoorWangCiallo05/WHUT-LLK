@@ -2,7 +2,10 @@
 #ifndef RESULTDIALOG_H
 #define RESULTDIALOG_H
 
+#include "windowdrag.h"
 #include <QDialog>
+#include <QPropertyAnimation>
+#include <QGraphicsOpacityEffect>
 
 class QLabel;
 class QPushButton;
@@ -15,6 +18,7 @@ public:
 
     void setResult(bool win, int totalSec, int leftSec, int removedPairs);
 
+
 private:
     QLabel* titleLabel;
     QLabel* detailLabel;
@@ -22,6 +26,8 @@ private:
     QPushButton* okBtn;
 
     QString calcGrade(bool win, int usedSec, int leftSec) const;
+
+    WindowDragState m_dragState;
 };
 
 #endif

@@ -92,25 +92,45 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="aboutdialog.cpp" />
     <ClCompile Include="audiomanager.cpp" />
     <ClCompile Include="classicwindow.cpp" />
+    <ClCompile Include="customwindow.cpp" />
     <ClCompile Include="gamelogic.cpp" />
     <ClCompile Include="gamewindow.cpp" />
+    <ClCompile Include="glassmessagebox.cpp" />
     <ClCompile Include="helpdialog.cpp" />
+    <ClCompile Include="levelselectdialog.cpp" />
+    <ClCompile Include="levelwindow.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mainwindow.cpp" />
+    <ClCompile Include="rankdialog.cpp" />
+    <ClCompile Include="rankmanager.cpp" />
     <ClCompile Include="relaxwindow.cpp" />
     <ClCompile Include="resultdialog.cpp" />
     <ClCompile Include="settingsdialog.cpp" />
+    <ClCompile Include="thememanager.cpp" />
     <ClCompile Include="timedwindow.cpp" />
     <QtMoc Include="timedwindow.h" />
   </ItemGroup>
   <ItemGroup>
+    <QtMoc Include="thememanager.h" />
+    <QtMoc Include="customwindow.h" />
+    <QtMoc Include="levelwindow.h" />
+    <QtMoc Include="levelselectdialog.h" />
+    <ClInclude Include="glassmessagebox.h" />
+    <ClInclude Include="windowdrag.h" />
+    <ClInclude Include="windowround.h" />
+    <QtMoc Include="rankdialog.h" />
+    <ClInclude Include="rankmanager.h" />
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="uistyle.h" />
     <QtMoc Include="resultdialog.h" />
     <QtMoc Include="settingsdialog.h" />
     <QtMoc Include="helpdialog.h" />
     <QtMoc Include="classicwindow.h" />
     <QtMoc Include="audiomanager.h" />
+    <QtMoc Include="aboutdialog.h" />
     <ClInclude Include="gamelogic.h" />
     <QtMoc Include="gamewindow.h" />
     <QtMoc Include="mainwindow.h" />
@@ -118,6 +138,12 @@
   </ItemGroup>
   <ItemGroup>
     <QtRcc Include="res.qrc" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="version.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="images\app.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">
