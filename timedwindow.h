@@ -9,6 +9,7 @@
 #include <QPropertyAnimation>
 #include <QGraphicsOpacityEffect>
 #include <QResizeEvent>
+#include <QCloseEvent>
 
 class TimedWindow : public GameWindow
 {
@@ -24,6 +25,7 @@ protected:
     QString helpText() const override;
 
     void resizeEvent(QResizeEvent* event) override;
+    void closeEvent(QCloseEvent* event) override; // 自己管关闭
 
     QString formatTime(int sec) const;
     void finishTimedGame(bool win);

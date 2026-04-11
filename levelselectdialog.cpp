@@ -10,6 +10,7 @@
 #include <QGraphicsDropShadowEffect>
 #include <QColor>
 
+// 关卡选择对话框，提供三个关卡选项和一个取消按钮，根据解锁状态显示不同样式
 LevelSelectDialog::LevelSelectDialog(QWidget* parent)
     : QDialog(parent)
 {
@@ -103,6 +104,7 @@ LevelSelectDialog::LevelSelectDialog(QWidget* parent)
     connect(btnCancel, &QPushButton::clicked, this, &QDialog::reject);
 }
 
+// 根据解锁状态刷新关卡按钮的样式和可用性，未解锁的关卡显示灰色并禁用
 void LevelSelectDialog::refreshLockState()
 {
     QSettings s("YourCompany", "LLK_Refresh");

@@ -6,6 +6,7 @@
 #include <QTimer>
 #include <QSettings>
 
+// 关卡模式窗口，包含三关不同大小的棋盘，通关后自动进入下一关并解锁下一关按钮
 LevelWindow::LevelWindow(int startLevel, QWidget* parent)
     : TimedWindow(parent, false),
     m_level(startLevel),
@@ -28,6 +29,7 @@ LevelWindow::LevelWindow(int startLevel, QWidget* parent)
     startGame();
 }
 
+// 根据当前关卡设置棋盘大小
 void LevelWindow::applyLevelSize()
 {
     if (m_level == 1) {
@@ -41,6 +43,7 @@ void LevelWindow::applyLevelSize()
     }
 }
 
+// 初始化游戏状态，设置棋盘大小，重置计时器和相关变量
 void LevelWindow::initGame()
 {
     applyLevelSize();
@@ -67,6 +70,7 @@ void LevelWindow::initGame()
     m_switchingLevel = false;
 }
 
+// 关卡通关处理，解锁下一关按钮，自动进入下一关，显示过关提示
 void LevelWindow::onGameCleared()
 {
     if (m_switchingLevel) return;

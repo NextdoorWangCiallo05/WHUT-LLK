@@ -1,6 +1,7 @@
 #include "relaxwindow.h"
 #include "thememanager.h"
 
+/// 休闲模式窗口实现
 RelaxWindow::RelaxWindow(QWidget* parent) : GameWindow(parent)
 {
     setWindowTitle("休闲模式");
@@ -12,6 +13,7 @@ RelaxWindow::RelaxWindow(QWidget* parent) : GameWindow(parent)
     startGame();
 }
 
+/// 初始化游戏数据，设置地图大小和类型数量
 void RelaxWindow::initGame()
 {
     rows = 8;
@@ -20,6 +22,7 @@ void RelaxWindow::initGame()
     logic->initMap(rows, cols);
 }
 
+/// 开始游戏，创建地图并刷新界面
 void RelaxWindow::startGame()
 {
     createBoard();

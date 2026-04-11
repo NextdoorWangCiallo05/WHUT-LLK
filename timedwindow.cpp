@@ -4,9 +4,11 @@
 #include "uistyle.h"
 #include "thememanager.h"
 #include "rankmanager.h"
+#include "glassmessagebox.h"
 
 #include <QInputDialog>
 #include <QPushButton>
+#include <QCloseEvent>
 #include <QMessageBox>
 #include <QLabel>
 #include <QHBoxLayout>
@@ -14,6 +16,7 @@
 #include <QSettings>
 #include <typeinfo>
 
+// 将剩余时间格式化为 mm:ss 形式
 QString TimedWindow::formatTime(int sec) const
 {
     if (sec < 0) sec = 0;
@@ -24,6 +27,7 @@ QString TimedWindow::formatTime(int sec) const
         .arg(s, 2, 10, QChar('0'));
 }
 
+// 构造函数，设置窗口标题、加载总时间配置、初始化游戏状态、创建 UI 元素和连接信号槽
 TimedWindow::TimedWindow(QWidget* parent, bool autoStart) : GameWindow(parent)
 {
     setWindowTitle("计时模式");
@@ -93,7 +97,21 @@ TimedWindow::TimedWindow(QWidget* parent, bool autoStart) : GameWindow(parent)
 )");
 
     disconnect(btnBack, nullptr, nullptr, nullptr);
-    connect(btnBack, &QPushButton::clicked, this, [=]() {
+    connect(btnBack, &QPushButton::clicked, this, [this]() {
+        if (m_forceClosing || gameFinished) {
+            if (timer) timer->stop();
+            backToMain();
+            return;
+        }
+
+        const bool ok = GlassMessageBox::question(this, "提示", "你真的要退出吗？退出后不会保存当前进度。");
+        if (!ok) {
+            if (timer && !isPaused && !gameFinished && !timer->isActive()) {
+                timer->start(1000);
+            }
+            return;
+        }
+
         if (timer) timer->stop();
         backToMain();
         });
@@ -111,6 +129,7 @@ TimedWindow::TimedWindow(QWidget* parent, bool autoStart) : GameWindow(parent)
     }
 }
 
+// 初始化游戏状态，设置棋盘大小、计时器、分数等
 void TimedWindow::initGame()
 {
     rows = 8;
@@ -134,6 +153,7 @@ void TimedWindow::initGame()
     if (pauseMask) pauseMask->hide();
 }
 
+// 创建棋盘并开始计时
 void TimedWindow::startGame()
 {
     createBoard();
@@ -141,6 +161,7 @@ void TimedWindow::startGame()
     if (timer) timer->start(1000);
 }
 
+// 每秒更新剩余时间，时间耗尽时结束游戏
 void TimedWindow::onTimerTimeout()
 {
     if (gameFinished || isPaused) return;
@@ -159,6 +180,7 @@ void TimedWindow::onTimerTimeout()
     }
 }
 
+// 每消除一对，增加 removedPairs 计数；如果棋盘已空，结束游戏
 void TimedWindow::onPairRemoved()
 {
     if (gameFinished) return;
@@ -169,6 +191,7 @@ void TimedWindow::onPairRemoved()
     }
 }
 
+// 结束游戏，显示结果对话框；如果赢了且是计时模式本体，允许输入昵称并记录成绩
 void TimedWindow::finishTimedGame(bool win)
 {
     if (gameFinished) return;
@@ -200,11 +223,13 @@ void TimedWindow::finishTimedGame(bool win)
     backToMain();
 }
 
+// 游戏获胜时调用，结束游戏并显示结果
 void TimedWindow::onGameCleared()
 {
     finishTimedGame(true);
 }
 
+// 暂停或恢复游戏，更新界面状态和计时器
 void TimedWindow::setPaused(bool paused)
 {
     isPaused = paused;
@@ -226,6 +251,7 @@ void TimedWindow::setPaused(bool paused)
     }
 }
 
+// 更新暂停遮罩的位置和大小，使其覆盖棋盘，并调整标签位置
 void TimedWindow::updatePauseMaskGeometry()
 {
     if (!pauseMask || !boardWidget) return;
@@ -236,6 +262,7 @@ void TimedWindow::updatePauseMaskGeometry()
     if (pauseSubLabel) pauseSubLabel->setGeometry(0, r.height() / 2 + 6, r.width(), 28);
 }
 
+// 窗口大小改变时，更新暂停遮罩的几何形状以适应新的棋盘大小
 void TimedWindow::resizeEvent(QResizeEvent* event)
 {
     GameWindow::resizeEvent(event);
@@ -254,4 +281,26 @@ QString TimedWindow::helpText() const
         "1. 在倒计时结束前尽可能完成消除。\n"
         "2. 连线最多 2 拐点，可绕棋盘外侧。\n"
         "3. 合理使用“提示”和“重排”提高效率。";
+}
+
+void TimedWindow::closeEvent(QCloseEvent* event)
+{
+    if (m_forceClosing || gameFinished) {
+        if (timer) timer->stop();
+        event->accept();
+        return;
+    }
+
+    const bool ok = GlassMessageBox::question(this, "提示", "你真的要退出吗");
+    if (!ok) {
+        event->ignore();
+        if (timer && !isPaused && !gameFinished && !timer->isActive()) {
+            timer->start(1000);
+        }
+        return;
+    }
+
+    m_forceClosing = true;
+    if (timer) timer->stop();
+    event->accept();
 }

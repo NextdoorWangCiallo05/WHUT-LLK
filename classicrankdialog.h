@@ -1,20 +1,18 @@
 #pragma once
-#ifndef RANKDIALOG_H
-#define RANKDIALOG_H
+#ifndef CLASSICRANKDIALOG_H
+#define CLASSICRANKDIALOG_H
 
 #include "windowdrag.h"
 #include <QDialog>
-#include <QPropertyAnimation>
-#include <QGraphicsOpacityEffect>
 
 class QTableWidget;
 class QPushButton;
 
-class RankDialog : public QDialog
+class ClassicRankDialog : public QDialog
 {
     Q_OBJECT
 public:
-    explicit RankDialog(QWidget* parent = nullptr);
+    explicit ClassicRankDialog(QWidget* parent = nullptr);
 
 protected:
     void mousePressEvent(QMouseEvent* event) override;

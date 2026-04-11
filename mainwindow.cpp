@@ -12,6 +12,8 @@
 #include "audiomanager.h"
 #include "uistyle.h"
 #include "windowround.h"
+#include "classicrankdialog.h"
+#include "rankselectdialog.h"
 #include "thememanager.h"
 
 #include <QApplication>
@@ -30,6 +32,8 @@
 #include <QBrush>
 #include <QColor>
 
+// 主窗口实现
+// 负责显示主菜单界面，提供进入各个游戏模式的入口
 MainWindow::MainWindow(QWidget* parent)
     : QMainWindow(parent)
 {
@@ -56,6 +60,7 @@ MainWindow::MainWindow(QWidget* parent)
 
 MainWindow::~MainWindow() {}
 
+/// 初始化UI界面
 void MainWindow::initUI()
 {
     centralWidget = new QWidget(this);
@@ -218,8 +223,17 @@ void MainWindow::initUI()
         });
 
     connect(btnRank, &QPushButton::clicked, this, [=]() {
-        RankDialog dlg(this);
-        dlg.exec();
+        RankSelectDialog sel(this);
+        if (sel.exec() != QDialog::Accepted) return;
+
+        if (sel.selectedType() == 1) {
+            RankDialog dlg(this);          // 计时榜
+            dlg.exec();
+        }
+        else if (sel.selectedType() == 2) {
+            ClassicRankDialog dlg(this);   // 经典榜
+            dlg.exec();
+        }
         });
 
     connect(btnAbout, &QPushButton::clicked, this, [=]() {
@@ -228,6 +242,7 @@ void MainWindow::initUI()
         });
 }
 
+// 打开各个游戏模式的窗口，并关闭主菜单窗口
 void MainWindow::openClassicMode() {
     ClassicWindow* w = new ClassicWindow();
     w->move(this->pos());
@@ -273,6 +288,7 @@ void MainWindow::openCustomMode() {
     close();
 }
 
+// 实现窗口拖动
 void MainWindow::mousePressEvent(QMouseEvent* event)
 {
     if (handleWindowDragMousePress(this, event, m_dragState)) return;
@@ -291,6 +307,7 @@ void MainWindow::mouseReleaseEvent(QMouseEvent* event)
     QMainWindow::mouseReleaseEvent(event);
 }
 
+// 实现窗口背景绘制和圆角效果
 void MainWindow::resizeEvent(QResizeEvent* event)
 {
     QMainWindow::resizeEvent(event);
@@ -298,6 +315,7 @@ void MainWindow::resizeEvent(QResizeEvent* event)
     m_bgScaledSize = QSize();
 }
 
+// 绘制背景图和圆角遮罩
 void MainWindow::paintEvent(QPaintEvent* event)
 {
     Q_UNUSED(event);

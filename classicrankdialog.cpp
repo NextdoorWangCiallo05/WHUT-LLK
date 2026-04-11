@@ -1,5 +1,5 @@
-#include "rankdialog.h"
-#include "rankmanager.h"
+#include "classicrankdialog.h"
+#include "classicrankmanager.h"
 #include "thememanager.h"
 #include "uistyle.h"
 #include "glassmessagebox.h"
@@ -11,13 +11,13 @@
 #include <QHeaderView>
 #include <QPushButton>
 #include <QLabel>
-#include <QDateTime>
 #include <QGraphicsDropShadowEffect>
 #include <QColor>
 #include <QFileDialog>
 #include <QStandardPaths>
 
-static QString formatSec(int sec)
+// 将秒数格式化为 mm:ss 的形式
+static QString formatSecClassic(int sec)
 {
     if (sec < 0) sec = 0;
     int m = sec / 60;
@@ -27,7 +27,7 @@ static QString formatSec(int sec)
         .arg(s, 2, 10, QChar('0'));
 }
 
-RankDialog::RankDialog(QWidget* parent)
+ClassicRankDialog::ClassicRankDialog(QWidget* parent)
     : QDialog(parent)
 {
     setFixedSize(560, 400);
@@ -46,20 +46,14 @@ RankDialog::RankDialog(QWidget* parent)
     lay->setContentsMargins(16, 16, 16, 16);
     lay->setSpacing(12);
 
-    setupGlassDialogTopBar(this, lay, "计时模式排行榜", "计时模式排行榜");
+    setupGlassDialogTopBar(this, lay, "经典模式排行榜", "经典模式排行榜");
 
-    QLabel* title = new QLabel("计时模式排行榜", this);
+    QLabel* title = new QLabel("经典模式排行榜（用时越短越好）", this);
     title->setAlignment(Qt::AlignCenter);
     title->setStyleSheet(glassTitleLabelStyle());
 
     QWidget* tableCard = new QWidget(this);
-    tableCard->setStyleSheet(R"(
-        QWidget {
-            background-color: rgba(255,255,255,0.10);
-            border: 1px solid rgba(255,255,255,0.14);
-            border-radius: 12px;
-        }
-    )");
+    tableCard->setStyleSheet(glassCardStyle());
 
     auto* tableShadow = new QGraphicsDropShadowEffect(tableCard);
     tableShadow->setBlurRadius(18);
@@ -69,7 +63,7 @@ RankDialog::RankDialog(QWidget* parent)
 
     table = new QTableWidget(tableCard);
     table->setColumnCount(3);
-    table->setHorizontalHeaderLabels({ "昵称", "剩余时间", "日期" });
+    table->setHorizontalHeaderLabels({ "昵称", "用时", "日期" });
     table->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     table->verticalHeader()->setVisible(false);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -103,9 +97,9 @@ RankDialog::RankDialog(QWidget* parent)
         }
     )");
 
-    QVBoxLayout* tableLay = new QVBoxLayout(tableCard);
-    tableLay->setContentsMargins(8, 8, 8, 8);
-    tableLay->addWidget(table);
+    QVBoxLayout* cardLay = new QVBoxLayout(tableCard);
+    cardLay->setContentsMargins(8, 8, 8, 8);
+    cardLay->addWidget(table);
 
     btnExport = new QPushButton("导出", this);
     btnClear = new QPushButton("清空", this);
@@ -116,6 +110,7 @@ RankDialog::RankDialog(QWidget* parent)
         b->setMinimumWidth(110);
         applyGlassShadow(b, QColor(0, 0, 0, 85));
     }
+
     btnExport->setStyleSheet(glassButtonStyle(QColor(48, 209, 88)));
     btnClear->setStyleSheet(glassButtonStyle(QColor(255, 120, 70)));
     btnClose->setStyleSheet(glassButtonStyle(QColor(0, 145, 255)));
@@ -136,20 +131,20 @@ RankDialog::RankDialog(QWidget* parent)
     connect(btnClose, &QPushButton::clicked, this, &QDialog::accept);
 
     connect(btnClear, &QPushButton::clicked, this, [this]() {
-        if (!GlassMessageBox::question(this, "确认", "确定要清空计时排行榜吗？")) return;
-        RankManager::instance().clear();
+        if (!GlassMessageBox::question(this, "确认", "确定要清空经典排行榜吗？")) return;
+        ClassicRankManager::instance().clear();
         refreshTable();
-        GlassMessageBox::information(this, "提示", "计时排行榜已清空。");
+        GlassMessageBox::information(this, "提示", "经典排行榜已清空。");
         });
 
     connect(btnExport, &QPushButton::clicked, this, [this]() {
-        RankManager::instance().load();
+        ClassicRankManager::instance().load();
         QString def = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)
-            + "/timed_rank.csv";
-        QString file = QFileDialog::getSaveFileName(this, "导出计时排行榜", def, "CSV 文件 (*.csv)");
+            + "/classic_rank.csv";
+        QString file = QFileDialog::getSaveFileName(this, "导出经典排行榜", def, "CSV 文件 (*.csv)");
         if (file.isEmpty()) return;
 
-        if (RankManager::instance().exportToCsv(file)) {
+        if (ClassicRankManager::instance().exportToCsv(file)) {
             GlassMessageBox::information(this, "提示", "导出成功。");
         }
         else {
@@ -160,18 +155,17 @@ RankDialog::RankDialog(QWidget* parent)
     refreshTable();
 }
 
-// 刷新排行榜表格数据
-void RankDialog::refreshTable()
+void ClassicRankDialog::refreshTable()
 {
-    RankManager::instance().load();
-    QList<RankRecord> records = RankManager::instance().topRecords(10);
+    ClassicRankManager::instance().load();
+    QList<ClassicRankRecord> records = ClassicRankManager::instance().topRecords(10);
 
     table->setRowCount(records.size());
     for (int i = 0; i < records.size(); ++i) {
-        const RankRecord& r = records[i];
+        const ClassicRankRecord& r = records[i];
 
         auto* itemName = new QTableWidgetItem(r.nickname);
-        auto* itemTime = new QTableWidgetItem(formatSec(r.leftSec));
+        auto* itemTime = new QTableWidgetItem(formatSecClassic(r.usedSec));
         auto* itemDate = new QTableWidgetItem(r.dateTime.toString("yyyy-MM-dd HH:mm"));
 
         itemName->setTextAlignment(Qt::AlignCenter);
@@ -203,19 +197,19 @@ void RankDialog::refreshTable()
     }
 }
 
-void RankDialog::mousePressEvent(QMouseEvent* event)
+void ClassicRankDialog::mousePressEvent(QMouseEvent* event)
 {
     if (handleWindowDragMousePress(this, event, m_dragState)) return;
     QDialog::mousePressEvent(event);
 }
 
-void RankDialog::mouseMoveEvent(QMouseEvent* event)
+void ClassicRankDialog::mouseMoveEvent(QMouseEvent* event)
 {
     if (handleWindowDragMouseMove(this, event, m_dragState)) return;
     QDialog::mouseMoveEvent(event);
 }
 
-void RankDialog::mouseReleaseEvent(QMouseEvent* event)
+void ClassicRankDialog::mouseReleaseEvent(QMouseEvent* event)
 {
     handleWindowDragMouseRelease(event, m_dragState);
     QDialog::mouseReleaseEvent(event);

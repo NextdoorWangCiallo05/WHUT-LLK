@@ -25,6 +25,8 @@ public:
     QList<RankRecord> topRecords(int limit = 10) const;
     void clear();
 
+    bool exportToCsv(const QString& filePath) const;
+
 private:
     RankManager() = default;
 

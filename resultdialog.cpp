@@ -9,6 +9,8 @@
 #include <QGraphicsDropShadowEffect>
 #include <QColor>
 
+// 显示游戏结算结果的对话框，包含挑战成功/失败的标题、详细信息和评分等级
+// 评分等级根据是否挑战成功以及剩余时间计算，S/A/B/C/D五个等级
 ResultDialog::ResultDialog(QWidget* parent)
     : QDialog(parent)
 {
@@ -100,6 +102,7 @@ ResultDialog::ResultDialog(QWidget* parent)
     connect(okBtn, &QPushButton::clicked, this, &QDialog::accept);
 }
 
+// 根据挑战结果和剩余时间计算评分等级，挑战失败为D，挑战成功根据剩余时间分为S/A/B/C四个等级
 QString ResultDialog::calcGrade(bool win, int usedSec, int leftSec) const
 {
     Q_UNUSED(usedSec);
@@ -110,6 +113,7 @@ QString ResultDialog::calcGrade(bool win, int usedSec, int leftSec) const
     return "C";
 }
 
+// 设置结算结果，包括挑战成功/失败、总时长、用时、剩余时间和消除对数，并根据结果更新标题、详细信息和评分等级
 void ResultDialog::setResult(bool win, int totalSec, int leftSec, int removedPairs)
 {
     if (leftSec < 0) leftSec = 0;

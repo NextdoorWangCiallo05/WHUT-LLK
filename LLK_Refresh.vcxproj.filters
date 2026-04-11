@@ -80,6 +80,15 @@
     <ClCompile Include="glassmessagebox.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="classicrankmanager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="classicrankdialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="rankselectdialog.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="gamelogic.h">
@@ -101,6 +110,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="glassmessagebox.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="classicrankmanager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -148,6 +160,12 @@
       <Filter>Header Files</Filter>
     </QtMoc>
     <QtMoc Include="levelselectdialog.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="rankselectdialog.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
+    <QtMoc Include="classicrankdialog.h">
       <Filter>Header Files</Filter>
     </QtMoc>
   </ItemGroup>

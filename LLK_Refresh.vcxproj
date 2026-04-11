@@ -63,6 +63,11 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
   </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
     <ClCompile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -94,6 +99,8 @@
   <ItemGroup>
     <ClCompile Include="aboutdialog.cpp" />
     <ClCompile Include="audiomanager.cpp" />
+    <ClCompile Include="classicrankdialog.cpp" />
+    <ClCompile Include="classicrankmanager.cpp" />
     <ClCompile Include="classicwindow.cpp" />
     <ClCompile Include="customwindow.cpp" />
     <ClCompile Include="gamelogic.cpp" />
@@ -106,6 +113,7 @@
     <ClCompile Include="mainwindow.cpp" />
     <ClCompile Include="rankdialog.cpp" />
     <ClCompile Include="rankmanager.cpp" />
+    <ClCompile Include="rankselectdialog.cpp" />
     <ClCompile Include="relaxwindow.cpp" />
     <ClCompile Include="resultdialog.cpp" />
     <ClCompile Include="settingsdialog.cpp" />
@@ -118,7 +126,10 @@
     <QtMoc Include="customwindow.h" />
     <QtMoc Include="levelwindow.h" />
     <QtMoc Include="levelselectdialog.h" />
+    <QtMoc Include="classicrankdialog.h" />
+    <ClInclude Include="classicrankmanager.h" />
     <ClInclude Include="glassmessagebox.h" />
+    <QtMoc Include="rankselectdialog.h" />
     <ClInclude Include="windowdrag.h" />
     <ClInclude Include="windowround.h" />
     <QtMoc Include="rankdialog.h" />

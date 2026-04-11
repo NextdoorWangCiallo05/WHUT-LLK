@@ -1,4 +1,4 @@
-#include "rankmanager.h"
+#include "classicrankmanager.h"
 
 #include <QStandardPaths>
 #include <QDir>
@@ -9,23 +9,23 @@
 #include <QTextStream>
 #include <algorithm>
 
-/// 排行榜管理器实现
-RankManager& RankManager::instance()
+// 获取单例实例
+ClassicRankManager& ClassicRankManager::instance()
 {
-    static RankManager ins;
+    static ClassicRankManager ins;
     return ins;
 }
 
-/// 获取排行榜数据存储路径
-QString RankManager::storagePath() const
+// 获取排行榜数据的存储路径
+QString ClassicRankManager::storagePath() const
 {
     QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     QDir().mkpath(dir);
-    return dir + "/timed_rank.json";
+    return dir + "/classic_rank.json";
 }
 
-/// 加载排行榜数据
-void RankManager::load()
+// 从存储文件加载排行榜数据
+void ClassicRankManager::load()
 {
     m_records.clear();
 
@@ -45,9 +45,9 @@ void RankManager::load()
         if (!v.isObject()) continue;
         QJsonObject o = v.toObject();
 
-        RankRecord rec;
+        ClassicRankRecord rec;
         rec.nickname = o.value("nickname").toString("Anonymous");
-        rec.leftSec = o.value("leftSec").toInt(0);
+        rec.usedSec = o.value("usedSec").toInt(0);
         rec.dateTime = QDateTime::fromString(o.value("dateTime").toString(), Qt::ISODate);
 
         if (!rec.dateTime.isValid())
@@ -59,8 +59,8 @@ void RankManager::load()
     sortAndTrim();
 }
 
-// 保存排行榜数据
-void RankManager::save()
+// 将排行榜数据保存到存储文件
+void ClassicRankManager::save()
 {
     sortAndTrim();
 
@@ -68,7 +68,7 @@ void RankManager::save()
     for (const auto& rec : m_records) {
         QJsonObject o;
         o["nickname"] = rec.nickname;
-        o["leftSec"] = rec.leftSec;
+        o["usedSec"] = rec.usedSec;
         o["dateTime"] = rec.dateTime.toString(Qt::ISODate);
         arr.push_back(o);
     }
@@ -81,13 +81,13 @@ void RankManager::save()
     f.close();
 }
 
-// 添加排行榜记录
-void RankManager::addRecord(const QString& nickname, int leftSec)
+// 添加新的排行榜记录
+void ClassicRankManager::addRecord(const QString& nickname, int usedSec)
 {
-    RankRecord rec;
+    ClassicRankRecord rec;
     QString name = nickname.trimmed();
     rec.nickname = name.isEmpty() ? QStringLiteral("Anonymous") : name;
-    rec.leftSec = leftSec;
+    rec.usedSec = qMax(0, usedSec);
     rec.dateTime = QDateTime::currentDateTime();
 
     m_records.push_back(rec);
@@ -95,37 +95,37 @@ void RankManager::addRecord(const QString& nickname, int leftSec)
     save();
 }
 
-// 获取排行榜前N条记录
-QList<RankRecord> RankManager::topRecords(int limit) const
+// 获取排行榜前N条记录，默认返回前10条
+QList<ClassicRankRecord> ClassicRankManager::topRecords(int limit) const
 {
-    QList<RankRecord> out = m_records;
+    QList<ClassicRankRecord> out = m_records;
     if (limit > 0 && out.size() > limit)
         out = out.mid(0, limit);
     return out;
 }
 
 // 清空排行榜数据
-void RankManager::clear()
+void ClassicRankManager::clear()
 {
     m_records.clear();
     save();
 }
 
-// 排序并裁剪排行榜数据，保持最多10条记录
-void RankManager::sortAndTrim()
+// 对排行榜记录进行排序和裁剪，确保只保留前10条记录
+void ClassicRankManager::sortAndTrim()
 {
-    std::sort(m_records.begin(), m_records.end(), [](const RankRecord& a, const RankRecord& b) {
-        if (a.leftSec != b.leftSec)
-            return a.leftSec > b.leftSec; // 剩余时间越多越靠前
-        return a.dateTime < b.dateTime;   // 时间早的靠前
+    std::sort(m_records.begin(), m_records.end(), [](const ClassicRankRecord& a, const ClassicRankRecord& b) {
+        if (a.usedSec != b.usedSec)
+            return a.usedSec < b.usedSec;  // 用时越少越靠前
+        return a.dateTime < b.dateTime;    // 同分按更早时间
         });
 
     while (m_records.size() > 10)
         m_records.removeLast();
 }
 
-// 导出排行榜数据到 CSV 文件，返回是否成功
-bool RankManager::exportToCsv(const QString& filePath) const
+// 将排行榜数据导出为CSV文件，返回是否成功
+bool ClassicRankManager::exportToCsv(const QString& filePath) const
 {
     QFile f(filePath);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
@@ -133,12 +133,12 @@ bool RankManager::exportToCsv(const QString& filePath) const
 
     QTextStream out(&f);
     out.setEncoding(QStringConverter::Utf8);
-    out << "nickname,leftSec,dateTime\n";
+    out << "nickname,usedSec,dateTime\n";
     for (const auto& r : m_records) {
         QString nick = r.nickname;
         nick.replace("\"", "\"\"");
         out << "\"" << nick << "\","
-            << r.leftSec << ","
+            << r.usedSec << ","
             << r.dateTime.toString(Qt::ISODate) << "\n";
     }
     return true;

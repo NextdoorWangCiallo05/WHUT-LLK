@@ -8,6 +8,8 @@
 #include <QGraphicsDropShadowEffect>
 #include <QColor>
 
+// HelpDialog.cpp
+// 这个对话框用于显示游戏的帮助信息，包含一个标题和一段说明文本，以及一个关闭按钮
 HelpDialog::HelpDialog(QWidget* parent)
     : QDialog(parent),
     titleLabel(new QLabel(this)),
@@ -52,11 +54,13 @@ HelpDialog::HelpDialog(QWidget* parent)
     connect(closeBtn, &QPushButton::clicked, this, &QDialog::accept);
 }
 
+// 设置帮助对话框的标题文本
 void HelpDialog::setHelpTitle(const QString& title)
 {
     titleLabel->setText(title);
 }
 
+// 设置帮助对话框的内容文本
 void HelpDialog::setHelpText(const QString& text)
 {
     contentLabel->setText(text);

@@ -6,6 +6,7 @@
 
 class QMediaPlayer;
 class QAudioOutput;
+class QSoundEffect;
 
 class AudioManager : public QObject
 {
@@ -13,7 +14,7 @@ class AudioManager : public QObject
 public:
     static AudioManager& instance();
 
-    void init();                       // 初始化播放器
+    void init();                       // 初始化播放器与音效对象
     void playBgm(const QString& res);  // 例如 ":/audio/bgm.mp3"
     void stopBgm();
 
@@ -41,6 +42,11 @@ private:
 private:
     QMediaPlayer* m_player;
     QAudioOutput* m_output;
+
+    // 复用音效对象
+    QSoundEffect* m_clickSfx;
+    QSoundEffect* m_clearSfx;
+
     int m_volume;
     bool m_muted;
     bool m_sfxMuted;

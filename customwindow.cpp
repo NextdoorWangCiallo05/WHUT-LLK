@@ -10,6 +10,8 @@
 #include <QSpinBox>
 #include <QPushButton>
 
+/// 这个文件实现了自定义模式窗口，允许玩家输入棋盘的行数和列数来创建一个新的游戏
+// 自定义模式窗口实现
 CustomWindow::CustomWindow(QWidget* parent) : GameWindow(parent)
 {
     setWindowTitle("自定义模式");
@@ -29,6 +31,7 @@ CustomWindow::CustomWindow(QWidget* parent) : GameWindow(parent)
     m_valid = true;
 }
 
+// 初始化游戏数据，设置棋盘大小和图案类型数量
 bool CustomWindow::askBoardSize(int& r, int& c)
 {
     QDialog dlg(this);
@@ -164,23 +167,27 @@ bool CustomWindow::askBoardSize(int& r, int& c)
     return dlg.exec() == QDialog::Accepted;
 }
 
+// 初始化游戏数据，设置棋盘大小和图案类型数量
 void CustomWindow::initGame()
 {
     logic->setMaxType(ThemeManager::instance().tileTypeCount());
     logic->initMap(rows, cols);
 }
 
+// 开始游戏，创建棋盘并刷新界面
 void CustomWindow::startGame()
 {
     createBoard();
     refreshBoard();
 }
 
+// 返回帮助信息标题
 QString CustomWindow::helpTitle() const
 {
     return "自定义模式帮助";
 }
 
+// 返回帮助信息内容
 QString CustomWindow::helpText() const
 {
     return

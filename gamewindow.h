@@ -18,6 +18,8 @@
 #include <QIcon>
 #include <QPixmap>
 #include <QColor>
+#include <QVariantAnimation>
+#include <QCloseEvent>
 
 #include "gamelogic.h"
 #include "windowdrag.h"
@@ -49,13 +51,21 @@ protected:
     void backToMain();
     void createBoard();
     void onCellClicked(int x, int y);
+
     void refreshBoard();
+    void refreshCell(int x, int y);
+    void refreshCells(const std::vector<Point>& pts);
 
     virtual void onGameCleared();
 
     void showHint();
     void drawLinkPath(const std::vector<Point>& path);
     void clearHintStyle();
+
+    virtual bool isGameFinished() const;
+
+    bool confirmExitIfNeeded();
+    void closeEvent(QCloseEvent* event) override;
 
     void paintEvent(QPaintEvent* event) override;
 
@@ -72,7 +82,7 @@ protected:
     QHBoxLayout* btnLayout;
 
     QPushButton** cells;
-    int m_cellsCount; // 新增：cells 实际容量，避免 rows/cols 变化导致越界删除
+    int m_cellsCount;
 
     QPushButton* btnBack;
     QPushButton* btnReset;
@@ -95,12 +105,16 @@ protected:
     std::vector<Point> m_linkPath;
     bool m_showLink;
 
+    qreal m_linkAlpha = 1.0;
+    QVariantAnimation* m_linkFadeAnim = nullptr;
+
     Point hintA, hintB;
     bool hasHint;
 
     virtual void onPairRemoved() {}
 
     quint64 m_boardEpoch;
+    bool m_forceClosing = false;
 
 private:
     QIcon iconForValue(int v);
@@ -111,6 +125,7 @@ private:
     QSize m_bgScaledSize;
 
     WindowDragState m_dragState;
+    
 };
 
 #endif

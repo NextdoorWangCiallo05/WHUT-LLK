@@ -19,6 +19,7 @@
 #include <QListView>
 #include <QFrame>
 
+// 构造函数，设置窗口属性、加载主题、创建 UI 元素并连接信号槽
 SettingsDialog::SettingsDialog(QWidget* parent)
     : QDialog(parent)
 {
@@ -49,7 +50,6 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
     volumeSlider = new QSlider(Qt::Horizontal, this);
     volumeSlider->setRange(0, 100);
-    // 性能优化：简化滑块样式
     volumeSlider->setStyleSheet(R"(
         QSlider::groove:horizontal {
             height: 8px;
@@ -140,7 +140,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     )";
 
     muteCheck->setStyleSheet(checkStyle);
-    sfxMuteCheck->setStyleSheet(checkStyle);          // 新增
+    sfxMuteCheck->setStyleSheet(checkStyle); 
     autoShuffleCheck->setStyleSheet(checkStyle);
 
     QLabel* timedText = new QLabel("倒计时：", this);
@@ -328,7 +328,6 @@ QComboBox:focus {
     btnClose->setFixedHeight(40);
     btnClose->setMinimumWidth(120);
 
-    // 性能优化：减轻按钮阴影
     applyGlassShadow(btnRestoreDefault, QColor(0, 0, 0, 55));
     applyGlassShadow(btnClose, QColor(0, 0, 0, 55));
 
@@ -388,6 +387,7 @@ QComboBox:focus {
     connect(btnClose, &QPushButton::clicked, this, &QDialog::accept);
 }
 
+// 刷新 UI 元素状态以匹配当前设置
 void SettingsDialog::refreshUi()
 {
     const QSignalBlocker b1(volumeSlider);
@@ -420,6 +420,7 @@ void SettingsDialog::refreshUi()
     themeCombo->setCurrentIndex(idx);
 }
 
+// 恢复默认设置并保存到配置文件
 void SettingsDialog::restoreDefaults()
 {
     volumeSlider->setValue(50);
@@ -441,7 +442,6 @@ void SettingsDialog::restoreDefaults()
     volumeLabel->setText("50");
     volumeIconLabel->setText("VOL");
 
-    ThemeManager::instance().setCurrentTheme("fruit");
 }
 
 void SettingsDialog::mousePressEvent(QMouseEvent* event)

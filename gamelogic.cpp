@@ -7,7 +7,10 @@
 #include <queue>
 #include <array>
 #include <unordered_map>
+#include <limits>
 
+// 这个文件实现了游戏的核心逻辑，包括地图初始化、连接判断、路径寻找、提示功能和解决方案缓存等
+// GameLogic 类，负责管理游戏状态和提供核心功能
 namespace {
     static std::mt19937& globalRng()
     {
@@ -23,6 +26,7 @@ namespace {
     }
 }
 
+// 构造函数和析构函数，初始化成员变量
 GameLogic::GameLogic()
     : m_rows(0), m_cols(0)
 {
@@ -32,6 +36,7 @@ GameLogic::~GameLogic()
 {
 }
 
+// 初始化地图，设置行数和列数，并生成配对的数字填充地图，同时重置解决方案缓存
 void GameLogic::initMap(int rows, int cols)
 {
     m_rows = rows;
@@ -41,6 +46,7 @@ void GameLogic::initMap(int rows, int cols)
     invalidateSolutionCache();
 }
 
+// 设置图案类型数量，影响地图生成时的配对数字范围，同时重置解决方案缓存
 void GameLogic::createPairNumbers()
 {
     int total = m_rows * m_cols;
@@ -68,6 +74,7 @@ void GameLogic::createPairNumbers()
     }
 }
 
+// 判断地图是否为空，即所有格子都是 EMPTY
 bool GameLogic::isMapEmpty()
 {
     for (int i = 0; i < m_rows; i++) {
@@ -78,12 +85,14 @@ bool GameLogic::isMapEmpty()
     return true;
 }
 
+// 获取指定位置的地图数据，如果超出范围返回 EMPTY
 int GameLogic::getMapData(int x, int y)
 {
     if (x < 0 || x >= m_rows || y < 0 || y >= m_cols) return EMPTY;
     return m_map[x][y];
 }
 
+// 设置指定位置的地图数据，如果超出范围或值未改变则不操作，否则更新地图并重置解决方案缓存
 void GameLogic::setMapData(int x, int y, int val)
 {
     if (x < 0 || x >= m_rows || y < 0 || y >= m_cols) return;
@@ -92,6 +101,7 @@ void GameLogic::setMapData(int x, int y, int val)
     invalidateSolutionCache();
 }
 
+// 洗牌地图，将非 EMPTY 的格子中的数字随机打乱位置，同时重置解决方案缓存
 void GameLogic::shuffleMap()
 {
     std::vector<int> allCells;
@@ -116,6 +126,7 @@ void GameLogic::shuffleMap()
     invalidateSolutionCache();
 }
 
+// 判断两个点是否可以连接，条件是它们不相同、都非 EMPTY、值相同，并且通过 BFS 判断是否存在合法路径
 bool GameLogic::isConnected(Point a, Point b)
 {
     if (a == b) return false;
@@ -125,6 +136,7 @@ bool GameLogic::isConnected(Point a, Point b)
     return canConnectByBFS(a, b, nullptr);
 }
 
+// 寻找两个点之间的连接路径，如果存在合法路径则返回 true，并将路径存储在 path 中，路径包含起点和终点的拐点坐标
 bool GameLogic::findPath(Point a, Point b, std::vector<Point>& path)
 {
     path.clear();
@@ -135,6 +147,7 @@ bool GameLogic::findPath(Point a, Point b, std::vector<Point>& path)
     return canConnectByBFS(a, b, &path);
 }
 
+// 寻找任意一对可连接的点，如果存在则返回 true，并将这对点的坐标存储在 a 和 b 中
 bool GameLogic::findHintPair(Point& a, Point& b)
 {
     std::unordered_map<int, std::vector<Point>> buckets;
@@ -168,6 +181,7 @@ bool GameLogic::findHintPair(Point& a, Point& b)
     return false;
 }
 
+// 判断地图上是否存在任何一对可连接的点，如果缓存有效则直接返回缓存结果，否则通过 findHintPair 计算并更新缓存
 bool GameLogic::hasAnySolution()
 {
     if (m_solutionCacheValid) {
@@ -180,6 +194,7 @@ bool GameLogic::hasAnySolution()
     return m_hasSolutionCached;
 }
 
+// 洗牌地图直到存在可连接的点，最多尝试 maxTry 次，如果成功则返回 true，否则返回 false
 bool GameLogic::shuffleUntilSolvable(int maxTry)
 {
     if (isMapEmpty()) return true;
@@ -191,21 +206,64 @@ bool GameLogic::shuffleUntilSolvable(int maxTry)
     return false;
 }
 
+// 确保 BFS 相关的缓冲区大小足够，参数 R 和 C 是扩展地图的行数和列数，needPath 表示是否需要路径缓冲
+void GameLogic::ensureBfsBuffers(int R, int C, bool needPath)
+{
+    bool needResizeCore = (R > m_bufR || C > m_bufC);
+    if (needResizeCore) {
+        m_bufR = std::max(m_bufR, R);
+        m_bufC = std::max(m_bufC, C);
+
+        m_exBuf.assign(m_bufR, std::vector<int>(m_bufC, 0));
+        m_distBuf.assign(
+            m_bufR,
+            std::vector<std::array<int, 4>>(m_bufC, std::array<int, 4>{0, 0, 0, 0})
+        );
+        m_preBuf.clear(); // 核心尺寸变化，路径缓冲重建
+    }
+
+    if (needPath && m_preBuf.empty()) {
+        Prev d{ -1, -1, -1, false };
+        m_preBuf.assign(
+            m_bufR,
+            std::vector<std::array<Prev, 4>>(m_bufC, std::array<Prev, 4>{ d, d, d, d })
+        );
+    }
+}
+
+// 使用 BFS 判断两个点是否可以连接，路径最多包含 2 个拐点，允许绕外圈连接，如果 needPath 不为 nullptr 则同时记录路径信息
 bool GameLogic::canConnectByBFS(Point a, Point b, std::vector<Point>* path)
 {
-    int R = m_rows + 2;
-    int C = m_cols + 2;
+    const int R = m_rows + 2;
+    const int C = m_cols + 2;
+    const bool needPath = (path != nullptr);
+    const int INF = std::numeric_limits<int>::max() / 4;
 
-    std::vector<std::vector<int>> ex(R, std::vector<int>(C, 0));
-    for (int i = 0; i < m_rows; ++i) {
-        for (int j = 0; j < m_cols; ++j) {
-            ex[i + 1][j + 1] = m_map[i][j];
+    ensureBfsBuffers(R, C, needPath);
+
+    // 只重置本次使用区域 [0..R), [0..C)
+    for (int i = 0; i < R; ++i) {
+        for (int j = 0; j < C; ++j) {
+            m_exBuf[i][j] = 0;
+            m_distBuf[i][j] = std::array<int, 4>{ INF, INF, INF, INF };
+
+            if (needPath) {
+                Prev d{ -1, -1, -1, false };
+                m_preBuf[i][j] = std::array<Prev, 4>{ d, d, d, d };
+            }
         }
     }
 
-    int sx = a.x + 1, sy = a.y + 1;
-    int tx = b.x + 1, ty = b.y + 1;
-    ex[tx][ty] = 0;
+    // 填扩展地图
+    for (int i = 0; i < m_rows; ++i) {
+        for (int j = 0; j < m_cols; ++j) {
+            m_exBuf[i + 1][j + 1] = m_map[i][j];
+        }
+    }
+
+    const int sx = a.x + 1, sy = a.y + 1;
+    const int tx = b.x + 1, ty = b.y + 1;
+    m_exBuf[tx][ty] = 0;
 
     const int dx[4] = { 1, -1, 0, 0 };
     const int dy[4] = { 0, 0, 1, -1 };
@@ -214,39 +272,17 @@ bool GameLogic::canConnectByBFS(Point a, Point b, std::vector<Point>* path)
         int x, y, dir, turns;
     };
 
-    struct Prev {
-        int px, py, pdir;
-        bool has;
-    };
-
-    const int INF = 1e9;
-    std::vector<std::vector<std::array<int, 4>>> dist(
-        R, std::vector<std::array<int, 4>>(C, std::array<int, 4>{INF, INF, INF, INF})
-    );
-
-    std::vector<std::vector<std::array<Prev, 4>>> pre;
-    if (path) {
-        pre.assign(
-            R,
-            std::vector<std::array<Prev, 4>>(C, std::array<Prev, 4>{
-            Prev{ -1, -1, -1, false },
-                Prev{ -1, -1, -1, false },
-                Prev{ -1, -1, -1, false },
-                Prev{ -1, -1, -1, false }
-        })
-        );
-    }
-
     std::queue<Node> q;
 
+    // 从起点向四个方向“发射”
     for (int d = 0; d < 4; ++d) {
         int nx = sx + dx[d], ny = sy + dy[d];
         if (nx < 0 || nx >= R || ny < 0 || ny >= C) continue;
-        if (ex[nx][ny] != 0 && !(nx == tx && ny == ty)) continue;
+        if (m_exBuf[nx][ny] != 0 && !(nx == tx && ny == ty)) continue;
 
-        dist[nx][ny][d] = 0;
-        if (path) {
-            pre[nx][ny][d] = Prev{ sx, sy, -1, true };
+        m_distBuf[nx][ny][d] = 0;
+        if (needPath) {
+            m_preBuf[nx][ny][d] = Prev{ sx, sy, -1, true };
         }
         q.push({ nx, ny, d, 0 });
     }
@@ -265,32 +301,37 @@ bool GameLogic::canConnectByBFS(Point a, Point b, std::vector<Point>* path)
             break;
         }
 
-        int nx = cur.x + dx[cur.dir];
-        int ny = cur.y + dy[cur.dir];
-        if (nx >= 0 && nx < R && ny >= 0 && ny < C) {
-            if (ex[nx][ny] == 0 || (nx == tx && ny == ty)) {
-                if (dist[nx][ny][cur.dir] > cur.turns) {
-                    dist[nx][ny][cur.dir] = cur.turns;
-                    if (path) {
-                        pre[nx][ny][cur.dir] = Prev{ cur.x, cur.y, cur.dir, true };
+        // 直行
+        {
+            int nx = cur.x + dx[cur.dir];
+            int ny = cur.y + dy[cur.dir];
+            if (nx >= 0 && nx < R && ny >= 0 && ny < C) {
+                if (m_exBuf[nx][ny] == 0 || (nx == tx && ny == ty)) {
+                    if (m_distBuf[nx][ny][cur.dir] > cur.turns) {
+                        m_distBuf[nx][ny][cur.dir] = cur.turns;
+                        if (needPath) {
+                            m_preBuf[nx][ny][cur.dir] = Prev{ cur.x, cur.y, cur.dir, true };
+                        }
+                        q.push({ nx, ny, cur.dir, cur.turns });
                     }
-                    q.push({ nx, ny, cur.dir, cur.turns });
                 }
             }
         }
 
+        // 拐弯
         if (cur.turns < 2) {
             for (int nd = 0; nd < 4; ++nd) {
                 if (nd == cur.dir) continue;
+
                 int tx2 = cur.x + dx[nd];
                 int ty2 = cur.y + dy[nd];
                 if (tx2 < 0 || tx2 >= R || ty2 < 0 || ty2 >= C) continue;
-                if (ex[tx2][ty2] != 0 && !(tx2 == tx && ty2 == ty)) continue;
+                if (m_exBuf[tx2][ty2] != 0 && !(tx2 == tx && ty2 == ty)) continue;
 
-                if (dist[tx2][ty2][nd] > cur.turns + 1) {
-                    dist[tx2][ty2][nd] = cur.turns + 1;
-                    if (path) {
-                        pre[tx2][ty2][nd] = Prev{ cur.x, cur.y, cur.dir, true };
+                if (m_distBuf[tx2][ty2][nd] > cur.turns + 1) {
+                    m_distBuf[tx2][ty2][nd] = cur.turns + 1;
+                    if (needPath) {
+                        m_preBuf[tx2][ty2][nd] = Prev{ cur.x, cur.y, cur.dir, true };
                     }
                     q.push({ tx2, ty2, nd, cur.turns + 1 });
                 }
@@ -299,8 +340,9 @@ bool GameLogic::canConnectByBFS(Point a, Point b, std::vector<Point>* path)
     }
 
     if (endDir == -1) return false;
-    if (!path) return true;
+    if (!needPath) return true;
 
+    // 还原路径
     std::vector<Point> rev;
     int cx = endX;
     int cy = endY;
@@ -308,7 +350,7 @@ bool GameLogic::canConnectByBFS(Point a, Point b, std::vector<Point>* path)
     rev.push_back(Point(cx - 1, cy - 1));
 
     while (true) {
-        Prev p = pre[cx][cy][cd];
+        Prev p = m_preBuf[cx][cy][cd];
         if (!p.has) break;
 
         if (p.px == sx && p.py == sy && p.pdir == -1) {
@@ -328,6 +370,7 @@ bool GameLogic::canConnectByBFS(Point a, Point b, std::vector<Point>* path)
     path->clear();
     path->push_back(rev.front());
 
+    // 压缩为“拐点路径”
     for (size_t i = 1; i + 1 < rev.size(); ++i) {
         Point p0 = rev[i - 1], p1 = rev[i], p2 = rev[i + 1];
         int dx1 = p1.x - p0.x, dy1 = p1.y - p0.y;
@@ -341,6 +384,7 @@ bool GameLogic::canConnectByBFS(Point a, Point b, std::vector<Point>* path)
     return path->size() >= 2;
 }
 
+// 设置图案类型数量，影响地图生成时的配对数字范围，同时重置解决方案缓存
 void GameLogic::setMaxType(int n)
 {
     if (n < 1) n = 1;

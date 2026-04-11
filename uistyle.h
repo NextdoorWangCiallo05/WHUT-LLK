@@ -12,15 +12,24 @@
 #include <QLabel>
 #include <QPixmap>
 #include <QObject>
-
+#include <QHash>
 
 // 这个文件定义了一些玻璃风格的UI样式和辅助函数，供整个应用程序使用
 static inline QString glassButtonStyle(const QColor& baseColor)
 {
+    // 按颜色缓存样式字符串，避免重复拼接与解析
+    static QHash<QRgb, QString> styleCache;
+
+    const QRgb key = baseColor.rgba();
+    auto it = styleCache.constFind(key);
+    if (it != styleCache.constEnd()) {
+        return it.value();
+    }
+
     const QColor c1 = baseColor.lighter(120);
     const QColor c2 = baseColor.darker(112);
 
-    return QString(R"(
+    QString style = QString(R"(
         QPushButton {
             font-size: 15px;
             font-weight: 600;
@@ -64,6 +73,9 @@ static inline QString glassButtonStyle(const QColor& baseColor)
         .arg(c2.red()).arg(c2.green()).arg(c2.blue())
         .arg(c1.red()).arg(c1.green()).arg(c1.blue())
         .arg(c2.red()).arg(c2.green()).arg(c2.blue());
+
+    styleCache.insert(key, style);
+    return style;
 }
 
 /// 玻璃风格的卡片、标题标签、文本标签和时间标签样式
@@ -131,7 +143,6 @@ static inline QString glassTimeLabelStyle()
     )";
 }
 
-
 // 给按钮添加玻璃风格的阴影效果，默认使用半透明黑色阴影
 static inline void applyGlassShadow(QPushButton* btn, const QColor& color = QColor(0, 0, 0, 85))
 {
@@ -141,7 +152,6 @@ static inline void applyGlassShadow(QPushButton* btn, const QColor& color = QCol
     shadow->setColor(color);
     btn->setGraphicsEffect(shadow);
 }
-
 
 // 给对话框添加玻璃风格的标题栏，包含应用图标、标题文本、最小化和关闭按钮
 static inline void setupGlassDialogTopBar(
@@ -190,24 +200,9 @@ static inline void setupGlassDialogTopBar(
         }
     )");
 
-    QPushButton* btnMin = new QPushButton("–", topWidget);
     QPushButton* btnClose = new QPushButton("×", topWidget);
 
-    btnMin->setFixedSize(28, 24);
     btnClose->setFixedSize(28, 24);
-
-    btnMin->setStyleSheet(R"(
-        QPushButton {
-            background: transparent;
-            border: none;
-            font-size: 18px;
-            color: rgba(0,0,0,0.75);
-            border-radius: 10px;
-        }
-        QPushButton:hover {
-            background-color: rgba(255,255,255,0.35);
-        }
-    )");
 
     btnClose->setStyleSheet(R"(
         QPushButton {
@@ -226,15 +221,12 @@ static inline void setupGlassDialogTopBar(
     topLayout->addWidget(appIcon);
     topLayout->addWidget(titleLabel);
     topLayout->addStretch();
-    topLayout->addWidget(btnMin);
     topLayout->addWidget(btnClose);
 
-    QObject::connect(btnMin, &QPushButton::clicked, dlg, &QWidget::showMinimized);
     QObject::connect(btnClose, &QPushButton::clicked, dlg, &QDialog::reject);
 
     mainLayout->insertWidget(0, topWidget);
 }
-
 
 // 玻璃风格的主菜单大按钮样式，适合放在主界面或设置界面等重要位置，突出显示功能入口
 static inline QString mainMenuBigButtonStyle(const QColor& baseColor)
