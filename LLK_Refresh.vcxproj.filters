@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include="Source Files">
@@ -30,6 +30,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="gamewindow.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="gamecontrol.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="gamelogic.cpp">
@@ -94,6 +97,9 @@
     <ClInclude Include="gamelogic.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <QtMoc Include="gamecontrol.h">
+      <Filter>Header Files</Filter>
+    </QtMoc>
     <ClInclude Include="uistyle.h">
       <Filter>Header Files</Filter>
     </ClInclude>

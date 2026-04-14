@@ -24,8 +24,8 @@ CustomWindow::CustomWindow(QWidget* parent) : GameWindow(parent)
         return;
     }
 
-    rows = r;
-    cols = c;
+    m_customRows = r;
+    m_customCols = c;
     initGame();
     startGame();
     m_valid = true;
@@ -170,8 +170,8 @@ bool CustomWindow::askBoardSize(int& r, int& c)
 // 初始化游戏数据，设置棋盘大小和图案类型数量
 void CustomWindow::initGame()
 {
-    logic->setMaxType(ThemeManager::instance().tileTypeCount());
-    logic->initMap(rows, cols);
+    m_control->setMaxType(ThemeManager::instance().tileTypeCount());
+    m_control->initMap(m_customRows, m_customCols);
 }
 
 // 开始游戏，创建棋盘并刷新界面

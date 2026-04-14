@@ -21,7 +21,9 @@ private:
     bool askBoardSize(int& r, int& c);
 
 private:
-    bool m_valid = false; 
+    bool m_valid = false;
+    int m_customRows = 0;
+    int m_customCols = 0;
 };
 
 #endif

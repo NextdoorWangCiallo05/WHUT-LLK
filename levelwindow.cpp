@@ -33,29 +33,27 @@ LevelWindow::LevelWindow(int startLevel, QWidget* parent)
 void LevelWindow::applyLevelSize()
 {
     if (m_level == 1) {
-        rows = 8;  cols = 7;
+        m_control->initMap(8, 7);
     }
     else if (m_level == 2) {
-        rows = 9;  cols = 10;
+        m_control->initMap(9, 10);
     }
     else {
-        rows = 10; cols = 13;
+        m_control->initMap(10, 13);
     }
 }
 
 // 初始化游戏状态，设置棋盘大小，重置计时器和相关变量
 void LevelWindow::initGame()
 {
+    m_control->setMaxType(ThemeManager::instance().tileTypeCount());
     applyLevelSize();
-
-    logic->setMaxType(ThemeManager::instance().tileTypeCount());
-    logic->initMap(rows, cols);
 
     leftSec = totalSec;
     removedPairs = 0;
     gameFinished = false;
     isPaused = false;
-    inputEnabled = true;
+    m_control->setInputEnabled(true);
 
     if (labTime) {
         labTime->setText(QString("第%1关  剩余 %2 / 总计 %3")
@@ -89,7 +87,7 @@ void LevelWindow::onGameCleared()
         return;
     }
 
-    inputEnabled = false;
+    m_control->setInputEnabled(false);
     isPaused = true;
     gameFinished = true;
     if (timer) timer->stop();

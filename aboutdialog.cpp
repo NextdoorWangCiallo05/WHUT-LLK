@@ -41,11 +41,11 @@ AboutDialog::AboutDialog(QWidget* parent)
     titleLabel->setStyleSheet(glassTitleLabelStyle());
 
     contentLabel->setText(
-        "连连看  版本：1.0.5.6\n\n"
+        "连连看  版本：1.0.6.1\n\n"
         "这是一个使用 Qt6 开发的连连看小游戏。\n"
         "支持经典、休闲、计时、关卡和自定义五种模式，\n"
         "并包含提示、重排、排行榜、4种主题样式和结算功能。\n"
-        "最后更改于2026.4.13。"
+        "最后更改于2026.4.14。"
     );
     contentLabel->setWordWrap(true);
     contentLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);

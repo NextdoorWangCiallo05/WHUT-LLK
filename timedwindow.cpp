@@ -132,16 +132,14 @@ TimedWindow::TimedWindow(QWidget* parent, bool autoStart) : GameWindow(parent)
 // 初始化游戏状态，设置棋盘大小、计时器、分数等
 void TimedWindow::initGame()
 {
-    rows = 8;
-    cols = 12;
-    logic->setMaxType(ThemeManager::instance().tileTypeCount());
-    logic->initMap(rows, cols);
+    m_control->setMaxType(ThemeManager::instance().tileTypeCount());
+    m_control->initMap(8, 12);
 
     leftSec = totalSec;
     removedPairs = 0;
     gameFinished = false;
     isPaused = false;
-    inputEnabled = true;
+    m_control->setInputEnabled(true);
 
     if (labTime) {
         labTime->setText(QString("剩余 %1 / 总计 %2")
@@ -185,7 +183,7 @@ void TimedWindow::onPairRemoved()
 {
     if (gameFinished) return;
     removedPairs++;
-    if (logic->isMapEmpty()) {
+    if (m_control->isEmpty()) {
         if (timer) timer->stop();
         finishTimedGame(true);
     }
@@ -198,7 +196,7 @@ void TimedWindow::finishTimedGame(bool win)
     gameFinished = true;
 
     if (timer) timer->stop();
-    inputEnabled = false;
+    m_control->setInputEnabled(false);
 
     // 仅“计时模式本体”写入排行榜；关卡模式(LevelWindow)不写入
     if (win && typeid(*this) == typeid(TimedWindow)) {
@@ -233,7 +231,7 @@ void TimedWindow::onGameCleared()
 void TimedWindow::setPaused(bool paused)
 {
     isPaused = paused;
-    inputEnabled = !paused;
+    m_control->setInputEnabled(!paused);
 
     if (paused) {
         if (timer) timer->stop();

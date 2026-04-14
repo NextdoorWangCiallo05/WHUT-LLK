@@ -16,10 +16,8 @@ RelaxWindow::RelaxWindow(QWidget* parent) : GameWindow(parent)
 /// 初始化游戏数据，设置地图大小和类型数量
 void RelaxWindow::initGame()
 {
-    rows = 8;
-    cols = 8;
-    logic->setMaxType(ThemeManager::instance().tileTypeCount());
-    logic->initMap(rows, cols);
+    m_control->setMaxType(ThemeManager::instance().tileTypeCount());
+    m_control->initMap(8, 8);
 }
 
 /// 开始游戏，创建地图并刷新界面

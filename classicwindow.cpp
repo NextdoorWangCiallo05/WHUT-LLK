@@ -22,10 +22,8 @@ ClassicWindow::ClassicWindow(QWidget* parent) : GameWindow(parent)
 // 初始化游戏数据，设置棋盘大小和图案类型数量
 void ClassicWindow::initGame()
 {
-    rows = 9;
-    cols = 14;
-    logic->setMaxType(ThemeManager::instance().tileTypeCount());
-    logic->initMap(rows, cols);
+    m_control->setMaxType(ThemeManager::instance().tileTypeCount());
+    m_control->initMap(9, 14);
     m_finished = false;
 }
 
@@ -72,7 +70,7 @@ void ClassicWindow::onGameCleared()
 // 判断游戏是否结束，条件是玩家完成消除或者棋盘上没有可消除的图案
 bool ClassicWindow::isGameFinished() const
 {
-    return m_finished || (logic && logic->isMapEmpty());
+    return m_finished || (m_control && m_control->isFinished());
 }
 
 // 返回帮助信息的标题

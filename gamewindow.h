@@ -1,3 +1,4 @@
+#pragma once
 #ifndef GAMEWINDOW_H
 #define GAMEWINDOW_H
 
@@ -21,7 +22,7 @@
 #include <QVariantAnimation>
 #include <QCloseEvent>
 
-#include "gamelogic.h"
+#include "gamecontrol.h"
 #include "windowdrag.h"
 
 class GameWindow : public QWidget
@@ -46,8 +47,6 @@ protected:
     virtual QString helpTitle() const = 0;
     virtual QString helpText() const = 0;
 
-    bool inputEnabled;
-    void clearLinkPath();
     void backToMain();
     void createBoard();
     void onCellClicked(int x, int y);
@@ -57,11 +56,6 @@ protected:
     void refreshCells(const std::vector<Point>& pts);
 
     virtual void onGameCleared();
-
-    void showHint();
-    void drawLinkPath(const std::vector<Point>& path);
-    void clearHintStyle();
-
     virtual bool isGameFinished() const;
 
     bool confirmExitIfNeeded();
@@ -95,25 +89,15 @@ protected:
     QPushButton* btnMin;
     QPushButton* btnClose;
 
-    GameLogic* logic;
-    int rows;
-    int cols;
-    int cellSize;
-    Point lastPoint;
-    bool hasSelected;
+    GameControl* m_control;
 
-    std::vector<Point> m_linkPath;
-    bool m_showLink;
+    int cellSize;
 
     qreal m_linkAlpha = 1.0;
     QVariantAnimation* m_linkFadeAnim = nullptr;
 
-    Point hintA, hintB;
-    bool hasHint;
-
     virtual void onPairRemoved() {}
 
-    quint64 m_boardEpoch;
     bool m_forceClosing = false;
 
 private:
@@ -125,7 +109,20 @@ private:
     QSize m_bgScaledSize;
 
     WindowDragState m_dragState;
-    
+
+private slots:
+    void onControlCellSelected(int x, int y);
+    void onControlCellDeselected(int x, int y);
+    void onControlSelectionTransferred(int fromX, int fromY, int toX, int toY);
+    void onControlPairMatched(Point a, Point b, const std::vector<Point>& path);
+    void onControlCellsRemoved(Point a, Point b);
+    void onControlHintDisplayed(Point a, Point b);
+    void onControlHintCleared(Point a, Point b);
+    void onControlLinkPathUpdated();
+    void onControlLinkPathCleared();
+    void onControlGameCleared();
+    void onControlNoSolutionAutoShuffled();
+    void onControlNoSolutionManualShuffleNeeded();
 };
 
 #endif

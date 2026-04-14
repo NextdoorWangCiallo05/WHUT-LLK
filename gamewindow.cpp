@@ -17,18 +17,17 @@
 #include <QGraphicsDropShadowEffect>
 #include <QBrush>
 #include <QColor>
-#include <QPointer>
 
-// 这个文件实现了GameWindow类，包含了游戏窗口的构造函数、事件处理函数以及一些辅助函数
-// GameWindow类是所有游戏模式窗口的基类，提供了公共的UI组件和功能，如顶部栏、棋盘、按钮等，同时定义了一些纯虚函数供子类实现特定模式的逻辑
-// GameWindow类的构造函数设置了窗口的基本属性和布局，创建了顶部栏和相关按钮，并连接了按钮的信号与相应的槽函数
-// GameWindow类还包含了一些静态函数，用于返回不同UI组件的样式表字符串，这些样式表定义了组件的外观，如背景颜色、边框、字体等
-// GameWindow类还定义了一些成员变量，如棋盘的行数和列数、单元格大小、游戏逻辑对象、当前选中的单元格等，这些变量在游戏过程中会被更新和使用
-// GameWindow类还定义了一些虚函数，如onGameCleared()、helpTitle()、helpText()等，这些函数在子类中会被重写以实现不同模式的特定行为和帮助信息
-// GameWindow类还实现了一些事件处理函数，如paintEvent()、closeEvent()等，这些函数用于处理窗口的绘制和关闭事件，确保游戏界面能够正确显示和响应用户操作
-// GameWindow类还包含了一些辅助函数，如refreshBoard()、refreshCell()、drawLinkPath()等，这些函数用于更新游戏界面、显示连接路径等功能，增强游戏的交互性和可玩性
-// 总的来说，GameWindow类是整个游戏应用程序的核心窗口类，提供了一个基础框架和公共功能，供不同游戏模式的窗口类继承和扩展，实现丰富多样的游戏体验
-// 以下是一些静态函数，用于返回不同UI组件的样式表字符串
+// GameWindow 实现文件，包含游戏主窗口的 UI 组件创建、布局、事件处理等逻辑
+// 设计上采用了分层布局，顶部为标题栏和控制按钮，中部为游戏棋盘，底部为操作按钮。通过连接 GameControl 的信号和槽实现游戏状态与 UI 的同步更新。同时使用了 Qt 的样式表和图形效果来增强界面美观度，实现玻璃质感的视觉效果。
+// 主要功能包括：
+// - 创建和布局 UI 组件：使用 Qt 的布局管理器创建标题栏、信息栏、棋盘区域和操作按钮区域，并设置样式和效果
+// - 响应用户交互：处理用户点击棋盘单元格、操作按钮等事件，调用 GameControl 的方法更新游戏状态，并刷新 UI 显示
+// - 显示游戏状态：根据 GameControl 的状态更新棋盘单元格的图标和样式，显示连接路径、提示等信息
+// - 管理游戏流程：处理游戏完成、无解等状态，显示提示信息或返回主菜单等操作
+// - 优化性能：使用图标缓存、适应性调整棋盘单元格大小等方式提升界面响应速度和适配不同屏幕尺寸的能力
+
+// UI 样式定义，使用原生 Qt 样式表，配合半透明背景和阴影效果实现玻璃质感
 static QString topBarStyle()
 {
     return R"(
@@ -86,11 +85,12 @@ static QString topBarBtnCloseStyle()
 )";
 }
 
+// 棋盘单元格的样式，普通状态无边框，选中状态红色边框，提示状态黄色边框和半透明背景
 static const char* kCellStyleNormal = "border: none; background: transparent;";
 static const char* kCellStyleSelected = "border: 2px solid red; background: transparent;";
 static const char* kCellStyleHint = "border: 2px solid yellow; background: rgba(255,255,0,0.15);";
 
-// GameWindow类的构造函数，初始化窗口属性和布局，创建UI组件并连接信号与槽函数
+// GameWindow 构造函数，初始化成员变量，设置窗口属性，创建 UI 组件并连接信号槽
 GameWindow::GameWindow(QWidget* parent)
     : QWidget(parent),
     topWidget(nullptr),
@@ -111,15 +111,9 @@ GameWindow::GameWindow(QWidget* parent)
     titleLabel(nullptr),
     btnMin(nullptr),
     btnClose(nullptr),
-    logic(new GameLogic()),
-    rows(10),
-    cols(16),
+    m_control(new GameControl(this)),
     cellSize(48),
-    hasSelected(false),
-    m_showLink(false),
-    hasHint(false),
-    inputEnabled(true),
-    m_boardEpoch(0)
+    m_forceClosing(false)
 {
     setWindowFlags(Qt::FramelessWindowHint | Qt::Window);
     setFixedSize(800, 600);
@@ -131,9 +125,22 @@ GameWindow::GameWindow(QWidget* parent)
         m_bgScaled = QPixmap();
         m_bgScaledSize = QSize();
         m_iconCache.clear();
-        refreshBoard(); // 换主题属于全盘变化
+        refreshBoard();
         update();
         });
+
+    connect(m_control, &GameControl::cellSelected, this, &GameWindow::onControlCellSelected);
+    connect(m_control, &GameControl::cellDeselected, this, &GameWindow::onControlCellDeselected);
+    connect(m_control, &GameControl::selectionTransferred, this, &GameWindow::onControlSelectionTransferred);
+    connect(m_control, &GameControl::pairMatched, this, &GameWindow::onControlPairMatched);
+    connect(m_control, &GameControl::cellsRemoved, this, &GameWindow::onControlCellsRemoved);
+    connect(m_control, &GameControl::hintDisplayed, this, &GameWindow::onControlHintDisplayed);
+    connect(m_control, &GameControl::hintCleared, this, &GameWindow::onControlHintCleared);
+    connect(m_control, &GameControl::linkPathUpdated, this, &GameWindow::onControlLinkPathUpdated);
+    connect(m_control, &GameControl::linkPathCleared, this, &GameWindow::onControlLinkPathCleared);
+    connect(m_control, &GameControl::gameCleared, this, &GameWindow::onControlGameCleared);
+    connect(m_control, &GameControl::noSolutionAutoShuffled, this, &GameWindow::onControlNoSolutionAutoShuffled);
+    connect(m_control, &GameControl::noSolutionManualShuffleNeeded, this, &GameWindow::onControlNoSolutionManualShuffleNeeded);
 
     QVBoxLayout* globalLayout = new QVBoxLayout(this);
     globalLayout->setContentsMargins(16, 16, 16, 16);
@@ -229,7 +236,7 @@ GameWindow::GameWindow(QWidget* parent)
         update();
         });
     connect(m_linkFadeAnim, &QVariantAnimation::finished, this, [this]() {
-        clearLinkPath();
+        m_control->clearLinkPath();
         });
 }
 
@@ -244,10 +251,9 @@ GameWindow::~GameWindow()
         cells = nullptr;
         m_cellsCount = 0;
     }
-    delete logic;
 }
 
-// 设置公共模式按钮，包含返回主菜单、重排、提示、帮助等按钮，并连接相应的槽函数
+// 设置游戏模式通用的操作按钮，包括返回主菜单、重排、提示、帮助等，根据参数决定是否包含暂停按钮，并连接相应的槽函数处理用户交互
 void GameWindow::setupCommonModeButtons(const QColor& baseColor, bool withPauseButton, const QSize& btnSize)
 {
     btnBack = new QPushButton("返回主菜单");
@@ -273,7 +279,6 @@ void GameWindow::setupCommonModeButtons(const QColor& baseColor, bool withPauseB
     initBtn(btnHelp);
 
     connect(btnBack, &QPushButton::clicked, this, [this]() {
-        // 普通模式：这里确认一次
         if (!m_forceClosing && !isGameFinished()) {
             if (!GlassMessageBox::question(this, "提示", "你真的要退出吗？退出后不会保存当前进度。")) return;
         }
@@ -281,13 +286,13 @@ void GameWindow::setupCommonModeButtons(const QColor& baseColor, bool withPauseB
         });
 
     connect(btnReset, &QPushButton::clicked, this, [this]() {
-        logic->shuffleMap();
-        refreshBoard(); // 重排是全盘变化
+        m_control->shuffle();
+        refreshBoard();
         GlassMessageBox::information(this, "提示", "图案已重排！");
         });
 
     connect(btnHint, &QPushButton::clicked, this, [this]() {
-        showHint();
+        m_control->showHint();
         });
 
     connect(btnHelp, &QPushButton::clicked, this, [this]() {
@@ -298,7 +303,7 @@ void GameWindow::setupCommonModeButtons(const QColor& baseColor, bool withPauseB
         });
 }
 
-// 获取指定值对应的图标，如果缓存中已有则直接返回，否则从主题路径加载并缓存后返回
+// 获取指定数值对应的图标，使用缓存避免重复加载，提高性能
 QIcon GameWindow::iconForValue(int v)
 {
     auto it = m_iconCache.find(v);
@@ -310,7 +315,7 @@ QIcon GameWindow::iconForValue(int v)
     return icon;
 }
 
-// 设置窗口标题，如果标题标签存在则更新其文本
+// 设置窗口标题，更新标题标签的文本
 void GameWindow::setModeTitle(const QString& title)
 {
     if (titleLabel) {
@@ -318,7 +323,7 @@ void GameWindow::setModeTitle(const QString& title)
     }
 }
 
-// 返回主菜单的槽函数，首先确认是否需要提示用户保存进度，如果确认则创建主窗口并关闭当前窗口
+// 返回主菜单的操作，首先检查是否强制关闭标志，如果未设置则弹出确认对话框询问用户是否退出，若用户确认则创建主窗口实例并显示，同时关闭当前游戏窗口
 void GameWindow::backToMain()
 {
     if (m_forceClosing) return;
@@ -331,13 +336,10 @@ void GameWindow::backToMain()
     close();
 }
 
-// 创建棋盘的函数，首先增加棋盘版本号，重置选择和提示状态，清除连接路径，然后销毁旧的单元格和布局，最后根据行列数创建新的单元格并添加到布局中，同时连接单元格的点击信号与相应的槽函数
+// 创建游戏棋盘，根据 GameControl 的行列数动态生成 QPushButton 作为单元格，并连接点击事件处理函数，同时根据窗口大小适应性调整单元格大小，确保在不同屏幕尺寸下都有良好的显示效果
 void GameWindow::createBoard()
 {
-    ++m_boardEpoch;
-    hasSelected = false;
-    hasHint = false;
-    clearLinkPath();
+    m_control->resetState();
 
     if (cells) {
         for (int i = 0; i < m_cellsCount; ++i) {
@@ -353,30 +355,33 @@ void GameWindow::createBoard()
         delete item;
     }
 
+    const int r = m_control->rows();
+    const int c = m_control->cols();
+
     const int hSpacing = gameLayout->horizontalSpacing();
     const int vSpacing = gameLayout->verticalSpacing();
 
     const int safeBoardMaxW = 760;
     const int safeBoardMaxH = 360;
 
-    int maxByW = (safeBoardMaxW - (cols - 1) * hSpacing) / cols;
-    int maxByH = (safeBoardMaxH - (rows - 1) * vSpacing) / rows;
+    int maxByW = (safeBoardMaxW - (c - 1) * hSpacing) / c;
+    int maxByH = (safeBoardMaxH - (r - 1) * vSpacing) / r;
 
     int adaptive = qMin(maxByW, maxByH);
     if (adaptive < 24) adaptive = 24;
     if (adaptive > 48) adaptive = 48;
     cellSize = adaptive;
 
-    m_cellsCount = rows * cols;
+    m_cellsCount = r * c;
     cells = new QPushButton * [m_cellsCount];
 
-    int boardW = cols * cellSize + (cols - 1) * hSpacing;
-    int boardH = rows * cellSize + (rows - 1) * vSpacing;
+    int boardW = c * cellSize + (c - 1) * hSpacing;
+    int boardH = r * cellSize + (r - 1) * vSpacing;
     boardWidget->setFixedSize(boardW, boardH);
 
-    for (int x = 0; x < rows; ++x) {
-        for (int y = 0; y < cols; ++y) {
-            int idx = x * cols + y;
+    for (int x = 0; x < r; ++x) {
+        for (int y = 0; y < c; ++y) {
+            int idx = x * c + y;
             cells[idx] = new QPushButton(boardWidget);
             cells[idx]->setFixedSize(cellSize, cellSize);
             cells[idx]->setIconSize(QSize(cellSize - 2, cellSize - 2));
@@ -391,16 +396,19 @@ void GameWindow::createBoard()
     }
 }
 
-// 刷新指定单元格的显示，根据逻辑数据更新图标和样式，如果坐标无效或单元格不存在则直接返回
+// 刷新指定单元格的显示，根据 GameControl 中对应位置的数值更新图标和样式，数值为 0 时清除图标并设置普通样式，非 0 时设置对应图标并保持普通样式
 void GameWindow::refreshCell(int x, int y)
 {
     if (!cells) return;
-    if (x < 0 || x >= rows || y < 0 || y >= cols) return;
 
-    int idx = x * cols + y;
+    const int r = m_control->rows();
+    const int c = m_control->cols();
+    if (x < 0 || x >= r || y < 0 || y >= c) return;
+
+    int idx = x * c + y;
     if (idx < 0 || idx >= m_cellsCount || !cells[idx]) return;
 
-    int v = logic->getMapData(x, y);
+    int v = m_control->getMapData(x, y);
     if (v == 0) {
         cells[idx]->setIcon(QIcon());
         cells[idx]->setStyleSheet(kCellStyleNormal);
@@ -411,7 +419,7 @@ void GameWindow::refreshCell(int x, int y)
     }
 }
 
-// 刷新多个单元格的显示，遍历坐标列表并调用单个单元格的刷新函数
+// 刷新多个单元格的显示，接受一个 Point 类型的向量，依次调用 refreshCell 刷新每个指定位置的单元格
 void GameWindow::refreshCells(const std::vector<Point>& pts)
 {
     for (const auto& p : pts) {
@@ -419,112 +427,31 @@ void GameWindow::refreshCells(const std::vector<Point>& pts)
     }
 }
 
-// 处理单元格点击事件的函数，首先检查输入是否启用、坐标是否合法以及单元格是否有内容，如果没有则直接返回。然后根据当前选择状态进行处理，如果没有选中则设置当前单元格为选中状态并保存坐标；如果已经选中则检查是否点击了同一个单元格，如果是则取消选择；如果不是则尝试寻找连接路径，如果找到则播放消除音效、绘制连接路径、更新逻辑数据、刷新界面，并在动画结束后检查游戏状态和可能的重排
+// 处理单元格点击事件，首先播放点击音效，然后调用 GameControl 的 handleCellClick 方法处理游戏逻辑，根据点击位置更新游戏状态并刷新 UI 显示
 void GameWindow::onCellClicked(int x, int y)
 {
-    if (!inputEnabled) return;
-    if (!cells) return;
-    if (x < 0 || x >= rows || y < 0 || y >= cols) return;
-
-    Point cur(x, y);
-    if (logic->getMapData(x, y) == 0) return;
-
     AudioManager::instance().playClickSfx();
-    clearHintStyle();
-
-    if (!hasSelected) {
-        lastPoint = cur;
-        int idx = x * cols + y;
-        if (idx >= 0 && idx < m_cellsCount && cells[idx]) {
-            cells[idx]->setStyleSheet(kCellStyleSelected);
-        }
-        hasSelected = true;
-        return;
-    }
-
-    int prevIdx = lastPoint.x * cols + lastPoint.y;
-    if (prevIdx >= 0 && prevIdx < m_cellsCount && cells[prevIdx]) {
-        cells[prevIdx]->setStyleSheet(kCellStyleNormal);
-    }
-
-    if (lastPoint.x == x && lastPoint.y == y) {
-        hasSelected = false;
-        return;
-    }
-
-    std::vector<Point> path;
-    if (logic->findPath(lastPoint, cur, path)) {
-        AudioManager::instance().playClearSfx();
-
-        drawLinkPath(path);
-
-        // 先改数据
-        logic->setMapData(lastPoint.x, lastPoint.y, 0);
-        logic->setMapData(cur.x, cur.y, 0);
-        onPairRemoved();
-
-        // 局部刷新：仅刷新被消掉的两格
-        refreshCell(lastPoint.x, lastPoint.y);
-        refreshCell(cur.x, cur.y);
-
-        const quint64 epochAtSchedule = m_boardEpoch;
-        QPointer<GameWindow> self(this);
-
-        QTimer::singleShot(120, this, [self, epochAtSchedule]() {
-            if (!self) return;
-            if (self->m_boardEpoch != epochAtSchedule) return;
-            if (!self->cells) return;
-
-            self->clearLinkPath();
-
-            if (self->logic->isMapEmpty()) {
-                self->onGameCleared();
-                return;
-            }
-
-            if (!self->logic->hasAnySolution()) {
-                QSettings s("YourCompany", "LLK_Refresh");
-                bool autoShuffle = s.value("game/autoShuffle", true).toBool();
-
-                if (autoShuffle) {
-                    self->logic->shuffleUntilSolvable();
-                    self->refreshBoard(); // 自动重排是全盘变化
-                    GlassMessageBox::information(self, "提示", "当前无可消除对子，已自动重排。");
-                }
-                else {
-                    GlassMessageBox::information(self, "提示", "当前无可消除对子，请手动点击“重排”。");
-                }
-            }
-            });
-    }
-
-    hasSelected = false;
+    m_control->handleCellClick(x, y);
 }
 
-// 刷新整个棋盘的显示，遍历所有单元格并调用单个单元格的刷新函数，同时重置提示状态和连接路径
+// 刷新整个棋盘的显示，遍历 GameControl 中的所有单元格位置，调用 refreshCell 刷新每个单元格的显示状态，同时清除连接路径以更新 UI 显示
 void GameWindow::refreshBoard()
 {
     if (!cells) return;
 
-    for (int x = 0; x < rows; ++x) {
-        for (int y = 0; y < cols; ++y) {
+    const int r = m_control->rows();
+    const int c = m_control->cols();
+
+    for (int x = 0; x < r; ++x) {
+        for (int y = 0; y < c; ++y) {
             refreshCell(x, y);
         }
     }
 
-    hasHint = false;
-    clearLinkPath();
+    m_control->clearLinkPath();
 }
 
-// 绘制连接路径的函数，接受一个坐标列表作为路径，保存路径并设置显示连接的标志，然后调用update()触发重绘事件，在paintEvent中根据路径绘制连接线
-void GameWindow::drawLinkPath(const std::vector<Point>& path)
-{
-    m_linkPath = path;
-    m_showLink = true;
-    update();
-}
-
-// 重写paintEvent函数，在绘制事件中首先检查背景图是否需要缩放，如果需要则进行缩放并缓存结果。然后使用QPainter绘制背景图，并调用基类的paintEvent处理其他绘制操作。最后如果需要显示连接路径，则设置抗锯齿和画笔样式，并根据路径坐标计算单元格中心位置，绘制连接线
+// 绘制连接路径，首先检查当前连接路径是否有效且包含至少两个点，如果无效则直接返回。然后使用 QPainter 绘制连接路径，设置抗锯齿和线条样式，根据 GameControl 中的连接路径数据计算每个单元格中心的位置，并依次绘制连接线段，最后根据动画状态更新连接线的透明度实现淡入淡出效果
 void GameWindow::paintEvent(QPaintEvent* event)
 {
     if (m_bgScaledSize != size()) {
@@ -537,7 +464,7 @@ void GameWindow::paintEvent(QPaintEvent* event)
 
     QWidget::paintEvent(event);
 
-    if (!m_showLink || m_linkPath.size() < 2) return;
+    if (!m_control->isShowingLink() || m_control->linkPath().size() < 2) return;
 
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing, true);
@@ -546,6 +473,8 @@ void GameWindow::paintEvent(QPaintEvent* event)
     pen.setCapStyle(Qt::RoundCap);
     pen.setJoinStyle(Qt::RoundJoin);
     p.setPen(pen);
+
+    const auto& lpath = m_control->linkPath();
 
     auto cellCenter = [&](Point pt)->QPoint {
         int hSpacing = gameLayout->horizontalSpacing();
@@ -560,125 +489,55 @@ void GameWindow::paintEvent(QPaintEvent* event)
         return QPoint(cx, cy);
         };
 
-    for (size_t i = 0; i + 1 < m_linkPath.size(); ++i) {
-        p.drawLine(cellCenter(m_linkPath[i]), cellCenter(m_linkPath[i + 1]));
+    for (size_t i = 0; i + 1 < lpath.size(); ++i) {
+        p.drawLine(cellCenter(lpath[i]), cellCenter(lpath[i + 1]));
     }
 }
-// 重写鼠标事件处理函数，首先调用窗口拖动处理函数，如果处理函数返回true表示事件已被处理则直接返回，否则调用基类的事件处理函数继续处理其他逻辑
+
+// 处理窗口拖动的鼠标事件，首先调用 handleWindowDragMousePress、handleWindowDragMouseMove 和 handleWindowDragMouseRelease 函数处理窗口拖动逻辑，如果事件被处理则直接返回，否则调用基类的事件处理函数继续处理其他鼠标事件
 void GameWindow::mousePressEvent(QMouseEvent* event)
 {
     if (handleWindowDragMousePress(this, event, m_dragState)) return;
     QWidget::mousePressEvent(event);
 }
 
-// 重写鼠标移动事件处理函数，首先调用窗口拖动处理函数，如果处理函数返回true表示事件已被处理则直接返回，否则调用基类的事件处理函数继续处理其他逻辑
+// 处理窗口拖动的鼠标事件，首先调用 handleWindowDragMousePress、handleWindowDragMouseMove 和 handleWindowDragMouseRelease 函数处理窗口拖动逻辑，如果事件被处理则直接返回，否则调用基类的事件处理函数继续处理其他鼠标事件
 void GameWindow::mouseMoveEvent(QMouseEvent* event)
 {
     if (handleWindowDragMouseMove(this, event, m_dragState)) return;
     QWidget::mouseMoveEvent(event);
 }
 
-// 重写鼠标释放事件处理函数，首先调用窗口拖动处理函数，如果处理函数返回true表示事件已被处理则直接返回，否则调用基类的事件处理函数继续处理其他逻辑
+// 处理窗口拖动的鼠标事件，首先调用 handleWindowDragMousePress、handleWindowDragMouseMove 和 handleWindowDragMouseRelease 函数处理窗口拖动逻辑，如果事件被处理则直接返回，否则调用基类的事件处理函数继续处理其他鼠标事件
 void GameWindow::mouseReleaseEvent(QMouseEvent* event)
 {
     handleWindowDragMouseRelease(event, m_dragState);
     QWidget::mouseReleaseEvent(event);
 }
 
-// 清除提示样式的函数，首先检查是否有提示和单元格存在，如果没有则直接返回。然后根据提示坐标计算单元格索引，如果索引有效且单元格存在则根据逻辑数据更新图标和样式，最后重置提示状态
-void GameWindow::clearHintStyle()
-{
-    if (!hasHint || !cells) return;
-
-    // 仅局部清理提示样式，不做全盘刷新
-    int i1 = hintA.x * cols + hintA.y;
-    int i2 = hintB.x * cols + hintB.y;
-
-    if (i1 >= 0 && i1 < m_cellsCount && cells[i1]) {
-        if (logic->getMapData(hintA.x, hintA.y) == 0) {
-            cells[i1]->setIcon(QIcon());
-        }
-        cells[i1]->setStyleSheet(kCellStyleNormal);
-    }
-    if (i2 >= 0 && i2 < m_cellsCount && cells[i2]) {
-        if (logic->getMapData(hintB.x, hintB.y) == 0) {
-            cells[i2]->setIcon(QIcon());
-        }
-        cells[i2]->setStyleSheet(kCellStyleNormal);
-    }
-
-    hasHint = false;
-}
-
-// 显示提示的函数，首先清除之前的提示样式，然后调用逻辑对象的findHintPair函数寻找可消除的一对坐标，如果找到则保存提示坐标并设置提示样式，如果没有找到则根据设置决定是否自动重排或提示用户手动重排
-void GameWindow::showHint()
-{
-    clearHintStyle();
-
-    Point a, b;
-    if (logic->findHintPair(a, b)) {
-        hintA = a;
-        hintB = b;
-        hasHint = true;
-
-        int i1 = a.x * cols + a.y;
-        int i2 = b.x * cols + b.y;
-
-        if (cells && i1 >= 0 && i1 < m_cellsCount && cells[i1]) {
-            cells[i1]->setStyleSheet(kCellStyleHint);
-        }
-        if (cells && i2 >= 0 && i2 < m_cellsCount && cells[i2]) {
-            cells[i2]->setStyleSheet(kCellStyleHint);
-        }
-    }
-    else {
-        QSettings s("YourCompany", "LLK_Refresh");
-        bool autoShuffle = s.value("game/autoShuffle", true).toBool();
-
-        if (autoShuffle) {
-            GlassMessageBox::information(this, "提示", "当前无可消除对子，将自动重排。");
-            logic->shuffleUntilSolvable();
-            refreshBoard(); // 自动重排是全盘变化
-        }
-        else {
-            GlassMessageBox::information(this, "提示", "当前无可消除对子，请手动点击“重排”。");
-        }
-    }
-}
-
-// 清除连接路径的函数，首先检查是否需要清除，如果不需要则直接返回。然后重置显示连接的标志，清空连接路径列表，并调用update()触发重绘事件
-void GameWindow::clearLinkPath()
-{
-    if (!m_showLink && m_linkPath.empty()) return;
-    m_showLink = false;
-    m_linkPath.clear();
-    update();
-}
-
-// 游戏消除成功后的处理函数，首先显示一个信息框提示用户消除成功，然后调用返回主菜单的函数
+// 游戏完成时的处理函数，首先显示一个信息对话框提示用户消除成功，然后调用 backToMain 函数返回主菜单
 void GameWindow::onGameCleared()
 {
     GlassMessageBox::information(this, "结算", "消除成功");
     backToMain();
 }
 
-// 判断游戏是否结束的函数，检查逻辑对象是否存在，如果存在则调用其isMapEmpty函数判断棋盘是否已清空，如果逻辑对象不存在则认为游戏已结束
+// 检查游戏是否完成，调用 GameControl 的 isFinished 方法判断当前游戏状态是否已完成，返回相应的布尔值
 bool GameWindow::isGameFinished() const
 {
-    return logic ? logic->isMapEmpty() : true;
+    return m_control->isFinished();
 }
 
-// 确认退出的函数，如果强制关闭标志已设置或游戏已结束则直接返回true，否则显示一个询问框让用户确认是否退出，返回用户的选择结果
+// 在需要确认退出时弹出对话框询问用户是否退出，如果游戏已完成或强制关闭标志已设置则直接返回 true，否则显示一个问题对话框让用户选择是否退出，返回用户的选择结果
 bool GameWindow::confirmExitIfNeeded()
 {
     if (m_forceClosing || isGameFinished()) return true;
     return GlassMessageBox::question(this, "提示", "你真的要退出吗？退出后不会保存当前进度。");
 }
 
-// 重写窗口关闭事件处理函数，在关闭事件中首先调用确认退出的函数，如果用户确认则接受事件继续关闭窗口，否则忽略事件保持窗口打开
+// 处理窗口关闭事件，首先检查当前窗口是否为 TimedWindow 类型，如果是则直接调用基类的事件处理函数关闭窗口，否则根据强制关闭标志和游戏完成状态决定是否弹出确认对话框询问用户是否退出，如果用户确认则接受事件关闭窗口，否则忽略事件继续保持窗口打开状态
 void GameWindow::closeEvent(QCloseEvent* event)
 {
-    // TimedWindow / LevelWindow 由 TimedWindow::closeEvent 自己处理
     if (dynamic_cast<TimedWindow*>(this) != nullptr) {
         QWidget::closeEvent(event);
         return;
@@ -686,4 +545,127 @@ void GameWindow::closeEvent(QCloseEvent* event)
 
     if (m_forceClosing || confirmExitIfNeeded()) event->accept();
     else event->ignore();
+}
+
+// 处理 GameControl 的 cellSelected 信号，首先检查 cells 数组是否有效，然后根据传入的 x 和 y 坐标计算对应的单元格索引，如果索引有效且对应的单元格存在，则将该单元格的样式设置为选中状态
+void GameWindow::onControlCellSelected(int x, int y)
+{
+    if (!cells) return;
+    const int c = m_control->cols();
+    int idx = x * c + y;
+    if (idx >= 0 && idx < m_cellsCount && cells[idx]) {
+        cells[idx]->setStyleSheet(kCellStyleSelected);
+    }
+}
+
+// 处理 GameControl 的 cellDeselected 信号，首先检查 cells 数组是否有效，然后根据传入的 x 和 y 坐标计算对应的单元格索引，如果索引有效且对应的单元格存在，则将该单元格的样式设置为普通状态
+void GameWindow::onControlCellDeselected(int x, int y)
+{
+    if (!cells) return;
+    const int c = m_control->cols();
+    int idx = x * c + y;
+    if (idx >= 0 && idx < m_cellsCount && cells[idx]) {
+        cells[idx]->setStyleSheet(kCellStyleNormal);
+    }
+}
+
+// 处理 GameControl 的 selectionTransferred 信号，首先检查 cells 数组是否有效，然后根据传入的 fromX、fromY、toX 和 toY 坐标计算对应的单元格索引，如果目标索引有效且对应的单元格存在，则将该单元格的样式设置为选中状态
+void GameWindow::onControlSelectionTransferred(int fromX, int fromY, int toX, int toY)
+{
+    Q_UNUSED(fromX);
+    Q_UNUSED(fromY);
+    if (!cells) return;
+    const int c = m_control->cols();
+    int idx = toX * c + toY;
+    if (idx >= 0 && idx < m_cellsCount && cells[idx]) {
+        cells[idx]->setStyleSheet(kCellStyleSelected);
+    }
+}
+
+// 处理 GameControl 的 pairMatched 信号，首先播放消除成功的音效，然后根据传入的 a、b 和 path 参数更新 UI 显示连接路径和消除效果，最后调用 onPairRemoved 函数处理消除后的逻辑
+void GameWindow::onControlPairMatched(Point a, Point b, const std::vector<Point>& path)
+{
+    Q_UNUSED(a);
+    Q_UNUSED(b);
+    Q_UNUSED(path);
+    AudioManager::instance().playClearSfx();
+}
+
+// 处理 GameControl 的 cellsRemoved 信号，首先调用 onPairRemoved 函数处理消除后的逻辑，然后根据传入的 a 和 b 坐标刷新对应单元格的显示状态，更新 UI 显示消除效果
+void GameWindow::onControlCellsRemoved(Point a, Point b)
+{
+    onPairRemoved();
+    refreshCell(a.x, a.y);
+    refreshCell(b.x, b.y);
+}
+
+// 处理 GameControl 的 hintDisplayed 信号，首先检查 cells 数组是否有效，然后根据传入的 a 和 b 坐标计算对应的单元格索引，如果索引有效且对应的单元格存在，则将该单元格的样式设置为提示状态
+void GameWindow::onControlHintDisplayed(Point a, Point b)
+{
+    if (!cells) return;
+
+    const int c = m_control->cols();
+    int i1 = a.x * c + a.y;
+    int i2 = b.x * c + b.y;
+
+    if (i1 >= 0 && i1 < m_cellsCount && cells[i1]) {
+        cells[i1]->setStyleSheet(kCellStyleHint);
+    }
+    if (i2 >= 0 && i2 < m_cellsCount && cells[i2]) {
+        cells[i2]->setStyleSheet(kCellStyleHint);
+    }
+}
+
+// 处理 GameControl 的 hintCleared 信号，首先检查 cells 数组是否有效，然后根据传入的 a 和 b 坐标计算对应的单元格索引，如果索引有效且对应的单元格存在，则根据 GameControl 中对应位置的数值更新图标和样式，数值为 0 时清除图标并设置普通样式，非 0 时设置对应图标并保持普通样式，同时将样式设置为普通状态
+void GameWindow::onControlHintCleared(Point a, Point b)
+{
+    if (!cells) return;
+
+    const int c = m_control->cols();
+    int i1 = a.x * c + a.y;
+    int i2 = b.x * c + b.y;
+
+    if (i1 >= 0 && i1 < m_cellsCount && cells[i1]) {
+        if (m_control->getMapData(a.x, a.y) == 0) {
+            cells[i1]->setIcon(QIcon());
+        }
+        cells[i1]->setStyleSheet(kCellStyleNormal);
+    }
+    if (i2 >= 0 && i2 < m_cellsCount && cells[i2]) {
+        if (m_control->getMapData(b.x, b.y) == 0) {
+            cells[i2]->setIcon(QIcon());
+        }
+        cells[i2]->setStyleSheet(kCellStyleNormal);
+    }
+}
+
+// 处理 GameControl 的 linkPathUpdated 信号，调用 update 函数刷新窗口显示连接路径的更新效果
+void GameWindow::onControlLinkPathUpdated()
+{
+    update();
+}
+
+// 处理 GameControl 的 linkPathCleared 信号，调用 update 函数刷新窗口显示连接路径被清除的效果
+void GameWindow::onControlLinkPathCleared()
+{
+    update();
+}
+
+// 处理 GameControl 的 gameCleared 信号，调用 onGameCleared 函数处理游戏完成后的逻辑，显示提示信息并返回主菜单
+void GameWindow::onControlGameCleared()
+{
+    onGameCleared();
+}
+
+// 处理 GameControl 的 noSolutionAutoShuffled 信号，首先刷新整个棋盘的显示状态，然后显示一个信息对话框提示用户当前无可消除对子并已自动重排
+void GameWindow::onControlNoSolutionAutoShuffled()
+{
+    refreshBoard();
+    GlassMessageBox::information(this, "提示", "当前无可消除对子，已自动重排。");
+}
+
+// 处理 GameControl 的 noSolutionManualShuffleNeeded 信号，显示一个信息对话框提示用户当前无可消除对子需要手动点击重排
+void GameWindow::onControlNoSolutionManualShuffleNeeded()
+{
+    GlassMessageBox::information(this, "提示", "当前无可消除对子，请手动点击重排。");
 }
