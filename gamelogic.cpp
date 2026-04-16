@@ -11,6 +11,9 @@
 
 // 这个文件实现了游戏的核心逻辑，包括地图初始化、连接判断、路径寻找、提示功能和解决方案缓存等
 // GameLogic 类，负责管理游戏状态和提供核心功能
+// 主要成员变量包括地图数据、地图尺寸、BFS 相关的缓冲区以及解决方案缓存
+
+// 使用全局随机数生成器，确保在整个游戏过程中使用同一个随机数引擎，避免重复种子导致的随机性问题
 namespace {
     static std::mt19937& globalRng()
     {
@@ -319,6 +322,7 @@ bool GameLogic::canConnectByBFS(Point a, Point b, std::vector<Point>* path)
         }
 
         // 拐弯
+		// 注意：拐弯后 turns 增加 1，且不能超过 2
         if (cur.turns < 2) {
             for (int nd = 0; nd < 4; ++nd) {
                 if (nd == cur.dir) continue;

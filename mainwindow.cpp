@@ -70,6 +70,7 @@ void MainWindow::initUI()
     root->setContentsMargins(20, 20, 20, 20);
     root->setSpacing(0);
 
+	// 顶部标题栏，包含应用图标、标题和窗口控制按钮
     QWidget* topBar = new QWidget(this);
     topBar->setFixedHeight(44);
     topBar->setStyleSheet(R"(
@@ -124,6 +125,7 @@ void MainWindow::initUI()
 
     root->addWidget(topBar);
 
+	// 中部功能区，包含各个游戏模式的入口按钮
     QHBoxLayout* centerArea = new QHBoxLayout();
     centerArea->setContentsMargins(0, 10, 0, 10);
 
@@ -279,7 +281,7 @@ void MainWindow::openLevelMode() {
 
 void MainWindow::openCustomMode() {
     CustomWindow* w = new CustomWindow();
-    if (!w->isValid()) {      // 取消输入时不展示空白棋盘
+    if (!w->isValid()) {
         delete w;
         return;
     }

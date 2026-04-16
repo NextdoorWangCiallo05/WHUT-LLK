@@ -21,76 +21,82 @@
       <UniqueIdentifier>{639EADAA-A684-42e4-A9AD-28FC9BCB8F7C}</UniqueIdentifier>
       <Extensions>ts</Extensions>
     </Filter>
+    <Filter Include="Source Files\Front-End">
+      <UniqueIdentifier>{5052c17f-87f3-41fb-9e31-d2fa940a838a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Back-End">
+      <UniqueIdentifier>{e8f9f60d-c563-4dd2-af6e-16dc44c2204b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="mainwindow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="gamewindow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="gamecontrol.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="gamelogic.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="classicwindow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="relaxwindow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="timedwindow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="helpdialog.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="audiomanager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="settingsdialog.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="resultdialog.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="aboutdialog.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="rankmanager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="rankdialog.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="thememanager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="levelwindow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="customwindow.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="levelselectdialog.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="glassmessagebox.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="classicrankmanager.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Front-End</Filter>
     </ClCompile>
     <ClCompile Include="classicrankdialog.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="classicwindow.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="customwindow.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="gamewindow.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="glassmessagebox.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="helpdialog.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="levelselectdialog.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="levelwindow.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="mainwindow.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="rankdialog.cpp">
+      <Filter>Source Files\Front-End</Filter>
     </ClCompile>
     <ClCompile Include="rankselectdialog.cpp">
-      <Filter>Source Files</Filter>
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="relaxwindow.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="resultdialog.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="settingsdialog.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="timedwindow.cpp">
+      <Filter>Source Files\Front-End</Filter>
+    </ClCompile>
+    <ClCompile Include="audiomanager.cpp">
+      <Filter>Source Files\Back-End</Filter>
+    </ClCompile>
+    <ClCompile Include="classicrankmanager.cpp">
+      <Filter>Source Files\Back-End</Filter>
+    </ClCompile>
+    <ClCompile Include="gamecontrol.cpp">
+      <Filter>Source Files\Back-End</Filter>
+    </ClCompile>
+    <ClCompile Include="gamelogic.cpp">
+      <Filter>Source Files\Back-End</Filter>
+    </ClCompile>
+    <ClCompile Include="rankmanager.cpp">
+      <Filter>Source Files\Back-End</Filter>
+    </ClCompile>
+    <ClCompile Include="thememanager.cpp">
+      <Filter>Source Files\Back-End</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

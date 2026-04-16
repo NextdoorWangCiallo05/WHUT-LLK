@@ -46,11 +46,16 @@ void GameControl::handleCellClick(int x, int y)
     if (!m_inputEnabled) return;
     if (x < 0 || x >= m_rows || y < 0 || y >= m_cols) return;
 
+	// 如果点击的单元格为空，则直接返回；否则根据当前选择状态进行处理：
+    // 如果没有选择则选中当前单元格；如果已经选择则尝试匹配，如果匹配成功则显示路径、更新状态、发出信号，并在短暂延迟后清除路径和检查游戏状态；
+    // 如果匹配失败则转移选择到当前单元格
     Point cur(x, y);
     if (m_logic->getMapData(x, y) == 0) return;
 
     clearHintStyle();
 
+	// 如果当前没有选择任何单元格，则选中当前单元格并发出选择信号；否则先发出取消选择的信号，如果点击的单元格与之前选择的相同则取消选择；
+    // 如果不同则尝试匹配，如果匹配成功则显示路径、更新状态、发出匹配信号，并在短暂延迟后清除路径和检查游戏状态；如果匹配失败则转移选择到当前单元格
     if (!m_hasSelected) {
         m_lastPoint = cur;
         m_hasSelected = true;
@@ -58,6 +63,7 @@ void GameControl::handleCellClick(int x, int y)
         return;
     }
 
+	// 已经有一个单元格被选中，先发出取消选择的信号
     emit cellDeselected(m_lastPoint.x, m_lastPoint.y);
 
     if (m_lastPoint.x == x && m_lastPoint.y == y) {
@@ -65,6 +71,7 @@ void GameControl::handleCellClick(int x, int y)
         return;
     }
 
+	// 尝试找到连接路径，如果找到则显示路径、更新状态、发出匹配信号，并在短暂延迟后清除路径和检查游戏状态；如果没有找到，则转移选择到当前单元格
     std::vector<Point> path;
     if (m_logic->findPath(m_lastPoint, cur, path)) {
         drawLinkPath(path);
