@@ -35,7 +35,7 @@ CustomWindow::CustomWindow(QWidget* parent) : GameWindow(parent)
 bool CustomWindow::askBoardSize(int& r, int& c)
 {
     QDialog dlg(this);
-    dlg.setFixedSize(460, 300);
+    dlg.setFixedSize(360, 360);
     dlg.setModal(true);
 
     auto applyDialogBg = [&dlg]() {
@@ -53,7 +53,7 @@ bool CustomWindow::askBoardSize(int& r, int& c)
 
     setupGlassDialogTopBar(&dlg, root, "自定义棋盘", "自定义棋盘");
 
-    QLabel* title = new QLabel("请输入棋盘大小（行×列需为偶数）", &dlg);
+    QLabel* title = new QLabel("请输入棋盘大小\n（行×列需为偶数）", &dlg);
     title->setAlignment(Qt::AlignCenter);
     title->setStyleSheet(glassTitleLabelStyle());
 
@@ -69,8 +69,8 @@ bool CustomWindow::askBoardSize(int& r, int& c)
     QLabel* labR = new QLabel("行数：", card);
     QLabel* labC = new QLabel("列数：", card);
 
-    labR->setFixedWidth(64);
-    labC->setFixedWidth(64);
+    labR->setFixedWidth(48);
+    labC->setFixedWidth(48);
     labR->setAlignment(Qt::AlignCenter);
     labC->setAlignment(Qt::AlignCenter);
     labR->setStyleSheet(R"(
@@ -87,8 +87,8 @@ bool CustomWindow::askBoardSize(int& r, int& c)
 
     QSpinBox* spinR = new QSpinBox(card);
     QSpinBox* spinC = new QSpinBox(card);
-    spinR->setRange(2, 30);
-    spinC->setRange(2, 30);
+    spinR->setRange(2, 12);
+    spinC->setRange(2, 20);
     spinR->setValue(r);
     spinC->setValue(c);
     spinR->setAlignment(Qt::AlignCenter);
@@ -112,6 +112,16 @@ bool CustomWindow::askBoardSize(int& r, int& c)
         QSpinBox:focus { border: 1px solid rgba(30,110,244,0.85); }
         QSpinBox::up-button, QSpinBox::down-button {
             width: 18px; border: none; background: transparent;
+        }
+        QSpinBox::up-arrow {
+            image: url(:/images/spin-up.svg);
+            width: 10px; 
+            height: 10px;
+        }
+        QSpinBox::down-arrow {
+            image: url(:/images/spin-down.svg);
+            width: 10px; 
+            height: 10px;
         }
     )");
     spinC->setStyleSheet(spinR->styleSheet());

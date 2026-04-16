@@ -38,6 +38,7 @@ private:
     QCheckBox* sfxMuteCheck;
     QCheckBox* autoShuffleCheck;
     QSpinBox* timedMinutesSpin;
+    QSpinBox* scorePerPairSpin;
     QComboBox* themeCombo;
 
     QPushButton* btnRestoreDefault;

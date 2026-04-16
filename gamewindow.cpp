@@ -198,6 +198,22 @@ GameWindow::GameWindow(QWidget* parent)
     infoLayout->setContentsMargins(0, 0, 0, 0);
     infoLayout->setSpacing(0);
     infoLayout->setAlignment(Qt::AlignCenter);
+
+    m_score = 0;
+    m_scoreLabel = new QLabel("当前分数: 0", infoWidget);
+    m_scoreLabel->setStyleSheet(R"(
+        QLabel {
+            color: rgba(0,0,0,0.92);
+            font-size: 15px;
+            font-weight: 600;
+            background-color: rgba(255,255,255,0.10);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 10px;
+            padding: 6px 16px;
+        }
+    )");
+    infoLayout->addWidget(m_scoreLabel);
+
     globalLayout->addWidget(infoWidget);
 
     globalLayout->addStretch(1);
@@ -588,6 +604,15 @@ void GameWindow::onControlPairMatched(Point a, Point b, const std::vector<Point>
     Q_UNUSED(b);
     Q_UNUSED(path);
     AudioManager::instance().playClearSfx();
+
+    // 读取分数设置，默认 5 分
+    QSettings s("YourCompany", "LLK_Refresh");
+    int scorePerPair = s.value("game/scorePerPair", 5).toInt();
+
+    m_score += scorePerPair;
+    if (m_scoreLabel) {
+        m_scoreLabel->setText(QString("当前分数: %1").arg(m_score));
+    }
 }
 
 // 处理 GameControl 的 cellsRemoved 信号，首先调用 onPairRemoved 函数处理消除后的逻辑，然后根据传入的 a 和 b 坐标刷新对应单元格的显示状态，更新 UI 显示消除效果

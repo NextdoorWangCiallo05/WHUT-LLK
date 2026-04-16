@@ -23,7 +23,7 @@
 SettingsDialog::SettingsDialog(QWidget* parent)
     : QDialog(parent)
 {
-    setFixedSize(500, 500);
+    setFixedSize(500, 600);
     setModal(true);
 
     auto applyDialogBg = [this]() {
@@ -74,17 +74,17 @@ SettingsDialog::SettingsDialog(QWidget* parent)
     )");
 
     volumeLabel = new QLabel(this);
-    volumeLabel->setMinimumWidth(36);
+    volumeLabel->setMinimumWidth(30);
     volumeLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
     volumeLabel->setStyleSheet(glassTextLabelStyle());
 
     volumeIconLabel = new QLabel(this);
-    volumeIconLabel->setFixedWidth(40);
+    volumeIconLabel->setFixedWidth(46);
     volumeIconLabel->setAlignment(Qt::AlignCenter);
     volumeIconLabel->setStyleSheet(R"(
     QLabel{
         color: rgba(0,0,0,0.88);
-        font-size: 10px;
+        font-size: 8px;
         font-weight: 600;
         letter-spacing: 0.5px;
         background-color: rgba(255,255,255,0.10);
@@ -129,10 +129,7 @@ SettingsDialog::SettingsDialog(QWidget* parent)
         QCheckBox::indicator:checked{
             background-color: rgba(30,110,244,0.95);
             border: 1px solid rgba(255,255,255,0.95);
-            image: url("data:image/svg+xml;utf8,\
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'>\
-<path d='M4 10.5l3.2 3.2L16 5.8' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/>\
-</svg>");
+            image: url(:/images/check.svg);
         }
         QCheckBox::indicator:checked:hover{
             background-color: rgba(52,132,255,0.98);
@@ -186,9 +183,15 @@ SettingsDialog::SettingsDialog(QWidget* parent)
             border: none;
             background: transparent;
         }
-        QSpinBox::up-arrow, QSpinBox::down-arrow {
-            width: 8px;
-            height: 8px;
+        QSpinBox::up-arrow {
+            image: url(:/images/spin-up.svg);
+            width: 10px; 
+            height: 10px;
+        }
+        QSpinBox::down-arrow {
+            image: url(:/images/spin-down.svg);
+            width: 10px; 
+            height: 10px;
         }
     )");
 
@@ -209,6 +212,63 @@ SettingsDialog::SettingsDialog(QWidget* parent)
 
     QWidget* timedCard = new QWidget(this);
     timedCard->setStyleSheet(glassCardStyle());
+
+    QWidget* scoreCard = new QWidget(this);
+    scoreCard->setStyleSheet(glassCardStyle()); 
+
+    QLabel* scoreText = new QLabel("消除得分：", scoreCard);
+    scoreText->setStyleSheet(R"(
+        QLabel{
+            color: rgba(0,0,0,0.92);
+            font-size: 15px;
+            font-weight: 600;
+            background-color: rgba(255,255,255,0.10);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 10px;
+            padding: 6px 10px;
+        }
+    )");
+    scoreText->setFixedWidth(110);
+
+    scorePerPairSpin = new QSpinBox(scoreCard);
+    scorePerPairSpin->setRange(1, 100);
+    scorePerPairSpin->setAlignment(Qt::AlignCenter);
+    scorePerPairSpin->setButtonSymbols(QAbstractSpinBox::UpDownArrows);
+    scorePerPairSpin->setFixedWidth(100);
+    scorePerPairSpin->setStyleSheet(R"(
+        QSpinBox {
+            color: rgba(0,0,0,0.95);
+            font-size: 15px;
+            font-weight: 600;
+            background-color: rgba(255,255,255,0.18);
+            border: 1px solid rgba(255,255,255,0.22);
+            border-radius: 10px;
+            padding: 6px 10px;
+            min-height: 18px;
+        }
+        QSpinBox:hover { border: 1px solid rgba(30,110,244,0.55); }
+        QSpinBox:focus { border: 1px solid rgba(30,110,244,0.85); }
+        QSpinBox::up-button, QSpinBox::down-button {
+            width: 18px; border: none; background: transparent;
+        }
+        QSpinBox::up-arrow { image: url(:/images/spin-up.svg); width: 10px; height: 10px; }
+        QSpinBox::down-arrow { image: url(:/images/spin-down.svg); width: 10px; height: 10px; }
+    )");
+
+    QLabel* scoreUnit = new QLabel("分/对", scoreCard);
+    scoreUnit->setAlignment(Qt::AlignCenter);
+    scoreUnit->setStyleSheet(scoreText->styleSheet());
+    scoreUnit->setFixedWidth(60);
+
+    QHBoxLayout* scoreRow = new QHBoxLayout(scoreCard);
+    scoreRow->setContentsMargins(12, 8, 12, 8);
+    scoreRow->setSpacing(10);
+    scoreRow->setAlignment(Qt::AlignVCenter);
+
+    scoreRow->addWidget(scoreText);
+    scoreRow->addWidget(scorePerPairSpin);
+    scoreRow->addWidget(scoreUnit);
+    scoreRow->addStretch();
 
     QLabel* themeText = new QLabel("界面主题：", this);
     themeText->setStyleSheet(glassTextLabelStyle());
@@ -344,6 +404,7 @@ QComboBox:focus {
     layout->addWidget(sfxMuteCheck);
     layout->addWidget(autoShuffleCheck);
     layout->addWidget(timedCard);
+    layout->addWidget(scoreCard);
     layout->addLayout(themeRow);
     layout->addStretch();
     layout->addLayout(btnRow);
@@ -353,12 +414,12 @@ QComboBox:focus {
     connect(volumeSlider, &QSlider::valueChanged, this, [=](int value) {
         AudioManager::instance().setVolume(value);
         volumeLabel->setText(QString::number(value));
-        volumeIconLabel->setText((muteCheck->isChecked() || volumeSlider->value() == 0) ? "MUTE" : "VOL");
+        volumeIconLabel->setText((muteCheck->isChecked() || volumeSlider->value() == 0) ? "静音" : "播放");
         });
 
     connect(muteCheck, &QCheckBox::toggled, this, [=](bool checked) {
         AudioManager::instance().setMuted(checked);
-        volumeIconLabel->setText((checked || volumeSlider->value() == 0) ? "MUTE" : "VOL");
+        volumeIconLabel->setText((checked || volumeSlider->value() == 0) ? "静音" : "播放");
         });
 
     connect(sfxMuteCheck, &QCheckBox::toggled, this, [=](bool checked) {
@@ -373,6 +434,11 @@ QComboBox:focus {
     connect(timedMinutesSpin, qOverload<int>(&QSpinBox::valueChanged), this, [=](int minutes) {
         QSettings s("YourCompany", "LLK_Refresh");
         s.setValue("game/timedModeTotalSec", minutes * 60);
+        });
+
+    connect(scorePerPairSpin, qOverload<int>(&QSpinBox::valueChanged), this, [=](int score) {
+        QSettings s("YourCompany", "LLK_Refresh");
+        s.setValue("game/scorePerPair", score);
         });
 
     connect(themeCombo, &QComboBox::currentIndexChanged, this, [=](int idx) {
@@ -405,13 +471,15 @@ void SettingsDialog::refreshUi()
     bool autoShuffle = s.value("game/autoShuffle", true).toBool();
     autoShuffleCheck->setChecked(autoShuffle);
 
+    scorePerPairSpin->setValue(s.value("game/scorePerPair", 5).toInt());
+
     int totalSec = s.value("game/timedModeTotalSec", 600).toInt();
     int minutes = totalSec / 60;
     if (minutes < 1) minutes = 1;
     if (minutes > 60) minutes = 60;
     timedMinutesSpin->setValue(minutes);
 
-    volumeIconLabel->setText((muteCheck->isChecked() || volumeSlider->value() == 0) ? "MUTE" : "VOL");
+    volumeIconLabel->setText((muteCheck->isChecked() || volumeSlider->value() == 0) ? "静音" : "播放");
 
     const QSignalBlocker b(themeCombo);
     const QString cur = ThemeManager::instance().currentTheme();
@@ -428,6 +496,7 @@ void SettingsDialog::restoreDefaults()
     sfxMuteCheck->setChecked(false);
     autoShuffleCheck->setChecked(true);
     timedMinutesSpin->setValue(10);
+    scorePerPairSpin->setValue(5);
 
     QSettings s("YourCompany", "LLK_Refresh");
     s.setValue("audio/volume", 50);
@@ -435,6 +504,7 @@ void SettingsDialog::restoreDefaults()
     s.setValue("audio/sfxMuted", false);
     s.setValue("game/autoShuffle", true);
     s.setValue("game/timedModeTotalSec", 600);
+    s.setValue("game/scorePerPair", 5);
 
     AudioManager::instance().setVolume(50);
     AudioManager::instance().setMuted(false);

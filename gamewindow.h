@@ -89,6 +89,9 @@ protected:
     QPushButton* btnMin;
     QPushButton* btnClose;
 
+    QLabel* m_scoreLabel;
+    int m_score;
+
     GameControl* m_control;
 
     int cellSize;

@@ -18,7 +18,7 @@ AboutDialog::AboutDialog(QWidget* parent)
     contentLabel(new QLabel(this)),
     closeBtn(new QPushButton("关闭", this))
 {
-    setFixedSize(420, 280);
+    setFixedSize(420, 360);
     setModal(true);
 
     auto applyDialogBg = [this]() {
@@ -41,14 +41,15 @@ AboutDialog::AboutDialog(QWidget* parent)
     titleLabel->setStyleSheet(glassTitleLabelStyle());
 
     contentLabel->setText(
-        "连连看  版本：1.0.6.2\n\n"
+        "连连看  版本：1.0.6.6\n\n"
         "这是一个使用 Qt6 开发的连连看小游戏。\n"
         "支持经典、休闲、计时、关卡和自定义五种模式，\n"
         "并包含提示、重排、排行榜、4种主题样式和结算功能。\n"
-        "最后更改于2026.4.15。\n\n"
+        "最后更改于2026.4.16。\n\n"
         "特别鸣谢：\n"
         "老己    李老师    Qt.io    Visual Studio    Canva\n"
-        "和在背后默默支持我的家人、老师和同学们"
+        "和在背后默默支持我的家人、老师和同学们!\n"
+        "至此，告一段落！"
     );
     contentLabel->setWordWrap(true);
     contentLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
